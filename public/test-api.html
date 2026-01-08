@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Teste de API Direto</title>
+    <style>
+        body { font-family: monospace; padding: 20px; }
+        button { padding: 10px 20px; margin: 10px; font-size: 16px; }
+        pre { background: #f5f5f5; padding: 15px; border-radius: 5px; overflow-x: auto; }
+        .success { color: green; }
+        .error { color: red; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Teste de API - Diagnóstico</h1>
+
+    <div>
+        <h2>1. Verificar Cookies</h2>
+        <button onclick="checkCookies()">Ver Cookies</button>
+        <button onclick="clearAllCookies()">Limpar TODOS os Cookies</button>
+        <pre id="cookies-output"></pre>
+    </div>
+
+    <div>
+        <h2>2. Testar Login com Fetch</h2>
+        <input type="email" id="email" placeholder="Email" value="hugo@mangue.digital" style="padding: 8px; width: 250px;">
+        <input type="password" id="password" placeholder="Senha" value="12341234" style="padding: 8px; width: 250px;">
+        <button onclick="testFetch()">Testar Fetch</button>
+        <pre id="fetch-output"></pre>
+    </div>
+
+    <div>
+        <h2>3. Testar Login com XMLHttpRequest</h2>
+        <button onclick="testXHR()">Testar XHR</button>
+        <pre id="xhr-output"></pre>
+    </div>
+
+    <script>
+        const API_URL = 'http://localhost:4000';
+
+        function checkCookies() {
+            const output = document.getElementById('cookies-output');
+            const cookies = document.cookie;
+
+            output.textContent = 'Cookies do domínio atual (localhost:3000):\n';
+            output.textContent += cookies || '(nenhum)\n';
+            output.textContent += '\n⚠️  IMPORTANTE:\n';
+            output.textContent += 'Abra DevTools → Application → Cookies\n';
+            output.textContent += 'e procure por cookies de http://localhost:4000\n';
+            output.textContent += 'Se houver, DELETE TODOS eles!';
+        }
+
+        function clearAllCookies() {
+            // Clear localhost:3000 cookies
+            document.cookie.split(";").forEach(function(c) {
+                document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+            });
+
+            alert('✅ Cookies de localhost:3000 removidos!\n\n⚠️ AGORA FAÇA MANUALMENTE:\n1. Abra DevTools (F12)\n2. Vá em Application → Cookies\n3. Clique em http://localhost:4000\n4. DELETE TODOS os cookies dessa lista');
+            checkCookies();
+        }
+
+        async function testFetch() {
+            const output = document.getElementById('fetch-output');
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            output.textContent = '⏳ Testando...\n';
+
+            try {
+                const response = await fetch(`${API_URL}/gradehoraria/public/usuario/entrar`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'omit', // NÃO enviar cookies
+                    body: JSON.stringify({ email, password }),
+                });
+
+                const data = await response.json();
+
+                output.textContent = `📊 Status: ${response.status}\n`;
+                output.textContent += `📦 Resposta:\n${JSON.stringify(data, null, 2)}\n\n`;
+
+                if (response.ok) {
+                    output.className = 'success';
+                    output.textContent += '✅ SUCESSO!';
+                } else {
+                    output.className = 'error';
+                    output.textContent += '❌ ERRO: ' + data.message;
+                }
+            } catch (error) {
+                output.className = 'error';
+                output.textContent = '❌ Erro de rede:\n' + error.message;
+            }
+        }
+
+        async function testXHR() {
+            const output = document.getElementById('xhr-output');
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+
+            output.textContent = '⏳ Testando...\n';
+
+            const xhr = new XMLHttpRequest();
+            xhr.withCredentials = false; // NÃO enviar cookies
+
+            xhr.onload = function() {
+                const data = JSON.parse(xhr.responseText);
+
+                output.textContent = `📊 Status: ${xhr.status}\n`;
+                output.textContent += `📦 Resposta:\n${JSON.stringify(data, null, 2)}\n\n`;
+
+                if (xhr.status === 200) {
+                    output.className = 'success';
+                    output.textContent += '✅ SUCESSO!';
+                } else {
+                    output.className = 'error';
+                    output.textContent += '❌ ERRO: ' + data.message;
+                }
+            };
+
+            xhr.onerror = function() {
+                output.className = 'error';
+                output.textContent = '❌ Erro de rede';
+            };
+
+            xhr.open('POST', `${API_URL}/gradehoraria/public/usuario/entrar`);
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            xhr.send(JSON.stringify({ email, password }));
+        }
+    </script>
+</body>
+</html>

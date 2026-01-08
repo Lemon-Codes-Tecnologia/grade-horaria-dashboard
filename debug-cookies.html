@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Cookies</title>
+</head>
+<body>
+    <h1>Verificar Cookies</h1>
+    <button onclick="checkCookies()">Verificar Todos os Cookies</button>
+    <button onclick="clearAll()">Limpar TODOS os Cookies</button>
+    <pre id="output"></pre>
+
+    <script>
+        function checkCookies() {
+            const output = document.getElementById('output');
+            const allCookies = document.cookie;
+
+            output.textContent = 'Cookies do domínio atual:\n';
+            output.textContent += allCookies || '(nenhum cookie encontrado)';
+            output.textContent += '\n\n';
+            output.textContent += 'Para ver cookies de outros domínios (como localhost:4000),\n';
+            output.textContent += 'abra DevTools → Application → Cookies';
+        }
+
+        function clearAll() {
+            // Clear all cookies from current domain
+            document.cookie.split(";").forEach(function(c) {
+                document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+            });
+
+            alert('Cookies do domínio atual removidos!\n\nAgora vá em DevTools → Application → Cookies e remova manualmente os cookies de localhost:4000 (se houver)');
+            checkCookies();
+        }
+    </script>
+</body>
+</html>
