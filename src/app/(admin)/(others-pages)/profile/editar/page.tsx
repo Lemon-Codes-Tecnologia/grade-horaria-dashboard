@@ -239,7 +239,7 @@ export default function EditarPerfilPage() {
                   error={errors.cargo?.message}
                 />
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  Opcional: Informe seu cargo ou função na instituição
+                  Opcional: Informe seu cargo ou função na escola
                 </p>
               </div>
             </div>

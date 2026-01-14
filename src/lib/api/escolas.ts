@@ -32,9 +32,22 @@ export interface Limites {
   maxTurmas?: number;
 }
 
+export interface HorarioTurno {
+  inicio: string;
+  fim: string;
+  duracaoAula: number;
+  intervalo: number;
+  inicioIntervalo?: string;
+}
+
 export interface Configuracoes {
   diasLetivos?: DiaSemana[];
   turnosDisponiveis?: Turno[];
+  horariosDisponiveis?: {
+    manha?: HorarioTurno;
+    tarde?: HorarioTurno;
+    noite?: HorarioTurno;
+  };
 }
 
 export interface Escola {
@@ -131,10 +144,21 @@ export interface CreateEscolaData {
   nivelEnsino?: NivelEnsino[];
   diasLetivos?: DiaSemana[];
   turnosDisponiveis?: Turno[];
+  horariosDisponiveis?: {
+    manha?: HorarioTurno;
+    tarde?: HorarioTurno;
+    noite?: HorarioTurno;
+  };
   inep?: string; // 8 dígitos
   cnpj?: string; // 14 dígitos
   contato?: Contato;
   limites?: Limites;
+  configuracoes?: {
+    maxTurmas?: number;
+    maxProfessores?: number;
+    maxDisciplinas?: number;
+    maxGradesHorarias?: number;
+  };
 }
 
 export const createEscola = async (

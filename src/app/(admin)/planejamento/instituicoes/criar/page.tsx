@@ -15,7 +15,7 @@ import { listUFs, listCidadesByUF, type UF, type Cidade } from "@/lib/api/locali
 
 // Validation schema matching backend CreateEscolaData
 const instituicaoSchema = z.object({
-  nome: z.string().min(1, "Nome da instituição é obrigatório"),
+  nome: z.string().min(1, "Nome da escola é obrigatório"),
   tipoEscola: z.enum(["publica", "privada", "tecnica", "superior"], {
     message: "Tipo de escola é obrigatório",
   }),
@@ -35,10 +35,6 @@ const instituicaoSchema = z.object({
   celular: z.string().optional(),
   email: z.string().email("E-mail inválido").optional().or(z.literal("")),
   site: z.string().optional(),
-  // Limites
-  maxAlunos: z.string().optional(),
-  maxProfessores: z.string().optional(),
-  maxTurmas: z.string().optional(),
 });
 
 type InstituicaoFormData = z.infer<typeof instituicaoSchema>;
@@ -81,6 +77,7 @@ export default function CriarInstituicaoPage() {
   const [selectedNiveis, setSelectedNiveis] = useState<NivelEnsino[]>([]);
   const [selectedDias, setSelectedDias] = useState<DiaSemana[]>([]);
   const [selectedTurnos, setSelectedTurnos] = useState<Turno[]>([]);
+  const [horariosDisponiveis, setHorariosDisponiveis] = useState<any>({});
   const [ufs, setUfs] = useState<UF[]>([]);
   const [cidades, setCidades] = useState<Cidade[]>([]);
   const [loadingUFs, setLoadingUFs] = useState(true);
@@ -162,9 +159,38 @@ export default function CriarInstituicaoPage() {
   };
 
   const toggleTurno = (turno: Turno) => {
-    setSelectedTurnos((prev) =>
-      prev.includes(turno) ? prev.filter((t) => t !== turno) : [...prev, turno]
-    );
+    setSelectedTurnos((prev) => {
+      const isSelected = prev.includes(turno);
+      if (isSelected) {
+        // Remove o turno e seus horários
+        const newHorarios = { ...horariosDisponiveis };
+        delete newHorarios[turno];
+        setHorariosDisponiveis(newHorarios);
+        return prev.filter((t) => t !== turno);
+      } else {
+        // Adiciona o turno com horários padrão
+        const horariosDefault = {
+          manha: { inicio: "07:00", fim: "12:00", duracaoAula: 50, intervalo: 15, inicioIntervalo: "09:30" },
+          tarde: { inicio: "13:00", fim: "18:00", duracaoAula: 50, intervalo: 15, inicioIntervalo: "15:30" },
+          noite: { inicio: "19:00", fim: "23:00", duracaoAula: 45, intervalo: 15, inicioIntervalo: "21:00" },
+        };
+        setHorariosDisponiveis({
+          ...horariosDisponiveis,
+          [turno]: horariosDefault[turno],
+        });
+        return [...prev, turno];
+      }
+    });
+  };
+
+  const updateHorario = (turno: Turno, field: string, value: string | number) => {
+    setHorariosDisponiveis((prev: any) => ({
+      ...prev,
+      [turno]: {
+        ...prev[turno],
+        [field]: value,
+      },
+    }));
   };
 
   // Função para formatar CNPJ: XX.XXX.XXX/XXXX-XX
@@ -192,7 +218,12 @@ export default function CriarInstituicaoPage() {
   const onSubmit = async (data: InstituicaoFormData) => {
     setIsSubmitting(true);
     try {
-      const response = await createEscola({
+      // Filtra horariosDisponiveis para incluir apenas os turnos selecionados
+      const horariosFiltered = horariosDisponiveis && Object.keys(horariosDisponiveis).length > 0
+        ? horariosDisponiveis
+        : undefined;
+
+      const payload = {
         nome: data.nome,
         tipoEscola: data.tipoEscola,
         endereco: {
@@ -207,6 +238,7 @@ export default function CriarInstituicaoPage() {
         nivelEnsino: selectedNiveis.length > 0 ? selectedNiveis : undefined,
         diasLetivos: selectedDias.length > 0 ? selectedDias : undefined,
         turnosDisponiveis: selectedTurnos.length > 0 ? selectedTurnos : undefined,
+        horariosDisponiveis: horariosFiltered,
         inep: data.inep || undefined,
         cnpj: data.cnpj || undefined,
         contato: {
@@ -215,18 +247,21 @@ export default function CriarInstituicaoPage() {
           email: data.email || undefined,
           site: data.site || undefined,
         },
-        limites: {
-          maxAlunos: data.maxAlunos ? parseInt(data.maxAlunos) : undefined,
-          maxProfessores: data.maxProfessores ? parseInt(data.maxProfessores) : undefined,
-          maxTurmas: data.maxTurmas ? parseInt(data.maxTurmas) : undefined,
+        configuracoes: {
+          maxTurmas: 20,
+          maxProfessores: 50,
+          maxDisciplinas: 40,
+          maxGradesHorarias: 10,
         },
-      });
+      };
+
+      const response = await createEscola(payload);
 
       // Mostra toast de sucesso
-      toast.success(response.message || "Instituição criada com sucesso!", {
+      toast.success(response.message || "Escola criada com sucesso!", {
         description: response.payload?.nome
-          ? `A instituição "${response.payload.nome}" foi cadastrada.`
-          : "A instituição foi cadastrada com sucesso.",
+          ? `A escola "${response.payload.nome}" foi cadastrada.`
+          : "A escola foi cadastrada com sucesso.",
       });
 
       // SEMPRE redireciona após sucesso
@@ -235,9 +270,9 @@ export default function CriarInstituicaoPage() {
       const errorMessage =
         error.response?.data?.message ||
         error.response?.data?.errors?.join(", ") ||
-        "Ocorreu um erro ao cadastrar a instituição. Tente novamente.";
+        "Ocorreu um erro ao cadastrar a escola. Tente novamente.";
 
-      toast.error("Erro ao criar instituição", {
+      toast.error("Erro ao criar escola", {
         description: errorMessage,
       });
     } finally {
@@ -256,10 +291,10 @@ export default function CriarInstituicaoPage() {
         </Link>
         <div>
           <h1 className="text-2xl font-semibold text-gray-800 dark:text-white/90">
-            Adicionar Instituição
+            Adicionar Escola
           </h1>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Preencha os dados da nova instituição
+            Preencha os dados da nova escola
           </p>
         </div>
       </div>
@@ -275,11 +310,11 @@ export default function CriarInstituicaoPage() {
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
               <div className="md:col-span-2">
                 <Label>
-                  Nome da Instituição <span className="text-error-500">*</span>
+                  Nome da Escola <span className="text-error-500">*</span>
                 </Label>
                 <Input
                   type="text"
-                  placeholder="Digite o nome da instituição"
+                  placeholder="Digite o nome da escola"
                   {...register("nome")}
                   error={errors.nome?.message}
                 />
@@ -416,6 +451,71 @@ export default function CriarInstituicaoPage() {
                 ))}
               </div>
             </div>
+
+            {/* Configuração de Horários por Turno */}
+            {selectedTurnos.length > 0 && (
+              <div className="mt-6 space-y-4">
+                <Label>Configuração de Horários</Label>
+                {selectedTurnos.map((turno) => (
+                  <div
+                    key={turno}
+                    className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-800/50"
+                  >
+                    <h3 className="mb-3 text-sm font-medium text-gray-800 dark:text-white/90">
+                      {turnoOptions.find((t) => t.value === turno)?.label}
+                    </h3>
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
+                      <div>
+                        <Label>Início</Label>
+                        <Input
+                          type="time"
+                          value={horariosDisponiveis?.[turno]?.inicio || ""}
+                          onChange={(e) => updateHorario(turno, "inicio", e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label>Fim</Label>
+                        <Input
+                          type="time"
+                          value={horariosDisponiveis?.[turno]?.fim || ""}
+                          onChange={(e) => updateHorario(turno, "fim", e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label>Duração da Aula (min)</Label>
+                        <Input
+                          type="number"
+                          placeholder="50"
+                          value={horariosDisponiveis?.[turno]?.duracaoAula || ""}
+                          onChange={(e) =>
+                            updateHorario(turno, "duracaoAula", parseInt(e.target.value) || 0)
+                          }
+                        />
+                      </div>
+                      <div>
+                        <Label>Intervalo (min)</Label>
+                        <Input
+                          type="number"
+                          placeholder="15"
+                          value={horariosDisponiveis?.[turno]?.intervalo || ""}
+                          onChange={(e) =>
+                            updateHorario(turno, "intervalo", parseInt(e.target.value) || 0)
+                          }
+                        />
+                      </div>
+                      <div>
+                        <Label>Início do Intervalo</Label>
+                        <Input
+                          type="time"
+                          value={horariosDisponiveis?.[turno]?.inicioIntervalo || ""}
+                          onChange={(e) => updateHorario(turno, "inicioIntervalo", e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Endereço */}
@@ -598,44 +698,6 @@ export default function CriarInstituicaoPage() {
             </div>
           </div>
 
-          {/* Limites */}
-          <div>
-            <h2 className="mb-4 text-lg font-medium text-gray-800 dark:text-white/90">
-              Limites (opcional)
-            </h2>
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-              <div>
-                <Label>Máximo de Alunos</Label>
-                <Input
-                  type="number"
-                  placeholder="1000"
-                  {...register("maxAlunos")}
-                  error={errors.maxAlunos?.message}
-                />
-              </div>
-
-              <div>
-                <Label>Máximo de Professores</Label>
-                <Input
-                  type="number"
-                  placeholder="50"
-                  {...register("maxProfessores")}
-                  error={errors.maxProfessores?.message}
-                />
-              </div>
-
-              <div>
-                <Label>Máximo de Turmas</Label>
-                <Input
-                  type="number"
-                  placeholder="30"
-                  {...register("maxTurmas")}
-                  error={errors.maxTurmas?.message}
-                />
-              </div>
-            </div>
-          </div>
-
           {/* Form Actions */}
           <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-800">
             <Link href="/planejamento/instituicoes">
@@ -644,7 +706,7 @@ export default function CriarInstituicaoPage() {
               </Button>
             </Link>
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Salvando..." : "Salvar Instituição"}
+              {isSubmitting ? "Salvando..." : "Salvar Escola"}
             </Button>
           </div>
         </form>

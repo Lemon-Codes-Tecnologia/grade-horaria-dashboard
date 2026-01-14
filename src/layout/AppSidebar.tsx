@@ -33,11 +33,11 @@ const navItems: NavItem[] = [
     name: "Planejamento Acadêmico",
     icon: <ListIcon />,
     subItems: [
-      { name: "Instituições", path: "/planejamento/instituicoes", pro: false },
-      { name: "Turmas", path: "/planejamento/turmas", pro: false },
+      { name: "Escolas", path: "/planejamento/instituicoes", pro: false },
       { name: "Disciplinas", path: "/planejamento/disciplinas", pro: false },
       { name: "Professores", path: "/planejamento/professores", pro: false },
-      { name: "Grades Horárias", path: "/horarios/grades", pro: false },
+      { name: "Turmas", path: "/planejamento/turmas", pro: false },
+      { name: "Grades Horárias", path: "/planejamento/grade-horaria", pro: false },
     ],
   },
   {
@@ -292,35 +292,22 @@ const AppSidebar: React.FC = () => {
       onMouseLeave={() => setIsHovered(false)}
     >
       <div
-        className={`py-8 flex  ${
+        className={`py-8 flex items-center gap-3 ${
           !isExpanded && !isHovered ? "lg:justify-center" : "justify-start"
         }`}
       >
-        <Link href="/">
-          {isExpanded || isHovered || isMobileOpen ? (
-            <>
-              <Image
-                className="dark:hidden"
-                src="/images/logo/logo.svg"
-                alt="Logo"
-                width={150}
-                height={40}
-              />
-              <Image
-                className="hidden dark:block"
-                src="/images/logo/logo-dark.svg"
-                alt="Logo"
-                width={150}
-                height={40}
-              />
-            </>
-          ) : (
-            <Image
-              src="/images/logo/logo-icon.svg"
-              alt="Logo"
-              width={32}
-              height={32}
-            />
+        <Link href="/" className="flex items-center gap-3">
+          <Image
+            src="/images/logo/logomarca.png"
+            alt="Grade Horária"
+            width={isExpanded || isHovered || isMobileOpen ? 50 : 32}
+            height={isExpanded || isHovered || isMobileOpen ? 50 : 32}
+            className="object-contain flex-shrink-0"
+          />
+          {(isExpanded || isHovered || isMobileOpen) && (
+            <span className="text-xl font-semibold text-gray-800 dark:text-white">
+              Grade Horária
+            </span>
           )}
         </Link>
       </div>

@@ -86,17 +86,17 @@ export default function CriarFilialPage() {
           // Se escolaMatriz está definida, significa que é uma filial, não matriz
           if (escola.escolaMatriz) {
             toast.error("Erro", {
-              description: "Só é possível adicionar filiais a instituições matriz.",
+              description: "Só é possível adicionar filiais a escolões matriz.",
             });
             router.push("/planejamento/instituicoes");
             return;
           }
         }
       } catch (error: any) {
-        toast.error("Erro ao carregar instituição matriz", {
+        toast.error("Erro ao carregar escolão matriz", {
           description:
             error.response?.data?.message ||
-            "Ocorreu um erro ao carregar os dados da instituição.",
+            "Ocorreu um erro ao carregar os dados da escolão.",
         });
         router.push("/planejamento/instituicoes");
       } finally {

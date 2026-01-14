@@ -11,6 +11,51 @@ import {
 } from "@/lib/api/escolas";
 import { toast } from "sonner";
 
+// Funções helper para formatar labels
+const formatTipoEscola = (tipo: string) => {
+  const labels: Record<string, string> = {
+    publica: "Pública",
+    privada: "Privada",
+    tecnica: "Técnica",
+    superior: "Superior"
+  };
+  return labels[tipo] || tipo;
+};
+
+const formatNivelEnsino = (nivel: string) => {
+  const labels: Record<string, string> = {
+    infantil: "Educação Infantil",
+    fundamental1: "Fundamental I",
+    fundamental2: "Fundamental II",
+    medio: "Ensino Médio",
+    eja: "EJA",
+    superior: "Ensino Superior"
+  };
+  return labels[nivel] || nivel;
+};
+
+const formatDiaSemana = (dia: string) => {
+  const labels: Record<string, string> = {
+    segunda: "Segunda",
+    terca: "Terça",
+    quarta: "Quarta",
+    quinta: "Quinta",
+    sexta: "Sexta",
+    sabado: "Sábado",
+    domingo: "Domingo"
+  };
+  return labels[dia] || dia;
+};
+
+const formatTurno = (turno: string) => {
+  const labels: Record<string, string> = {
+    manha: "Manhã",
+    tarde: "Tarde",
+    noite: "Noite"
+  };
+  return labels[turno] || turno;
+};
+
 export default function DetalhesInstituicaoPage() {
   const router = useRouter();
   const params = useParams();
@@ -110,7 +155,7 @@ export default function DetalhesInstituicaoPage() {
         </Link>
       </div>
 
-      {/* Informações da Instituição */}
+      {/* Informações da Escola */}
       <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
         <h2 className="mb-4 text-lg font-medium text-gray-800 dark:text-white/90">
           Informações Gerais
@@ -186,6 +231,116 @@ export default function DetalhesInstituicaoPage() {
               >
                 {escola.ativa ? "Ativo" : "Inativo"}
               </span>
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Informações Acadêmicas */}
+      <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
+        <h2 className="mb-4 text-lg font-medium text-gray-800 dark:text-white/90">
+          Informações Acadêmicas
+        </h2>
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+          <div>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Tipo de Escola</p>
+            <p className="mt-1 text-sm font-medium text-gray-800 dark:text-white/90">
+              {formatTipoEscola(escola.tipoEscola)}
+            </p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-500 dark:text-gray-400">INEP</p>
+            <p className="mt-1 text-sm font-medium text-gray-800 dark:text-white/90">
+              {escola.inep || "-"}
+            </p>
+          </div>
+          <div className="md:col-span-2">
+            <p className="text-sm text-gray-500 dark:text-gray-400">Níveis de Ensino</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {escola.nivelEnsino && escola.nivelEnsino.length > 0 ? (
+                escola.nivelEnsino.map((nivel) => (
+                  <span
+                    key={nivel}
+                    className="inline-flex rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700 dark:bg-blue-500/10 dark:text-blue-400"
+                  >
+                    {formatNivelEnsino(nivel)}
+                  </span>
+                ))
+              ) : (
+                <span className="text-sm text-gray-500 dark:text-gray-400">-</span>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Configurações de Funcionamento */}
+      <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
+        <h2 className="mb-4 text-lg font-medium text-gray-800 dark:text-white/90">
+          Configurações de Funcionamento
+        </h2>
+        <div className="space-y-6">
+          <div>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Dias Letivos</p>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {escola.configuracoes?.diasLetivos && escola.configuracoes.diasLetivos.length > 0 ? (
+                escola.configuracoes.diasLetivos.map((dia) => (
+                  <span
+                    key={dia}
+                    className="inline-flex rounded-full bg-purple-50 px-3 py-1 text-xs font-medium text-purple-700 dark:bg-purple-500/10 dark:text-purple-400"
+                  >
+                    {formatDiaSemana(dia)}
+                  </span>
+                ))
+              ) : (
+                <span className="text-sm text-gray-500 dark:text-gray-400">Não configurado</span>
+              )}
+            </div>
+          </div>
+          <div>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Turnos e Horários Disponíveis</p>
+            <div className="mt-2 space-y-3">
+              {escola.configuracoes?.horariosDisponiveis && Object.keys(escola.configuracoes.horariosDisponiveis).length > 0 ? (
+                Object.entries(escola.configuracoes.horariosDisponiveis).map(([turno, horario]: [string, any]) => (
+                  <div key={turno} className="flex items-center gap-3">
+                    <span className="inline-flex rounded-full bg-green-50 px-3 py-1 text-xs font-medium text-green-700 dark:bg-green-500/10 dark:text-green-400">
+                      {formatTurno(turno)}
+                    </span>
+                    <span className="text-sm text-gray-600 dark:text-gray-400">
+                      {horario.inicio} - {horario.fim} • Aula: {horario.duracaoAula}min • Intervalo: {horario.intervalo}min
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <span className="text-sm text-gray-500 dark:text-gray-400">Não configurado</span>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Estatísticas */}
+      <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
+        <h2 className="mb-4 text-lg font-medium text-gray-800 dark:text-white/90">
+          Estatísticas
+        </h2>
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+          <div>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Total de Alunos</p>
+            <p className="mt-1 text-2xl font-semibold text-gray-800 dark:text-white/90">
+              {escola.limites?.maxAlunos || "0"}
+            </p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Total de Professores</p>
+            <p className="mt-1 text-2xl font-semibold text-gray-800 dark:text-white/90">
+              {escola.limites?.maxProfessores || "0"}
+            </p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Total de Turmas</p>
+            <p className="mt-1 text-2xl font-semibold text-gray-800 dark:text-white/90">
+              {escola.limites?.maxTurmas || "0"}
             </p>
           </div>
         </div>

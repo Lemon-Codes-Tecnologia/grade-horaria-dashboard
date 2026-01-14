@@ -13,6 +13,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(({
   name,
   placeholder,
   defaultValue,
+  value,
   onChange,
   className = "",
   min,
@@ -42,23 +43,38 @@ const Input = forwardRef<HTMLInputElement, InputProps>(({
     inputClasses += ` bg-transparent text-gray-800 border-gray-300 focus:border-brand-300 focus:ring-3 focus:ring-brand-500/10 dark:border-gray-700 dark:bg-gray-900 dark:text-white/90 dark:focus:border-brand-800`;
   }
 
+  // Remove value from rest to handle it separately
+  const { value: restValue, ...restWithoutValue } = rest as any;
+
+  // Build input props conditionally to avoid controlled/uncontrolled switch
+  const inputProps: any = {
+    ref,
+    type,
+    id,
+    name,
+    placeholder,
+    onChange,
+    min,
+    max,
+    step,
+    disabled,
+    className: inputClasses,
+    ...restWithoutValue,
+  };
+
+  // Handle value prop: if value is explicitly passed (including from react-hook-form),
+  // ensure it's always a string to keep the input controlled
+  const finalValue = value !== undefined ? value : restValue;
+  if (finalValue !== undefined) {
+    // Always convert to string, never allow undefined to avoid controlled/uncontrolled switch
+    inputProps.value = finalValue === null ? '' : String(finalValue);
+  } else if (defaultValue !== undefined) {
+    inputProps.defaultValue = defaultValue === null ? '' : defaultValue;
+  }
+
   return (
     <div className="relative">
-      <input
-        ref={ref}
-        type={type}
-        id={id}
-        name={name}
-        placeholder={placeholder}
-        defaultValue={defaultValue}
-        onChange={onChange}
-        min={min}
-        max={max}
-        step={step}
-        disabled={disabled}
-        className={inputClasses}
-        {...rest}
-      />
+      <input {...inputProps} />
 
       {/* Error or Hint Text */}
       {errorMessage && (

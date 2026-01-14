@@ -4,6 +4,7 @@ import "flatpickr/dist/flatpickr.css";
 import { SidebarProvider } from "@/context/SidebarContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { AuthProvider } from "@/context/AuthContext";
+import { SchoolProvider } from "@/context/SchoolContext";
 import { Toaster } from "sonner";
 
 const outfit = Outfit({
@@ -19,12 +20,14 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${outfit.className} dark:bg-gray-900`}>
         <AuthProvider>
-          <ThemeProvider>
-            <SidebarProvider>
-              {children}
-              <Toaster position="top-right" richColors />
-            </SidebarProvider>
-          </ThemeProvider>
+          <SchoolProvider>
+            <ThemeProvider>
+              <SidebarProvider>
+                {children}
+                <Toaster position="top-right" richColors />
+              </SidebarProvider>
+            </ThemeProvider>
+          </SchoolProvider>
         </AuthProvider>
       </body>
     </html>
