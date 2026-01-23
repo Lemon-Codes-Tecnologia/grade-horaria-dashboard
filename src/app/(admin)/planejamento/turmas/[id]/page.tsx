@@ -4,12 +4,13 @@ import Link from "next/link";
 import { useRouter, useParams } from "next/navigation";
 import Button from "@/components/ui/button/Button";
 import { ChevronLeftIcon } from "@/icons";
-import { getTurma, type Turma, type Serie, type Turno } from "@/lib/api/turmas";
+import { getTurma, type Turma, type Turno } from "@/lib/api/turmas";
 import { toast } from "sonner";
+import { useSchool } from "@/context/SchoolContext";
 
 // Funções helper para formatar labels
-const formatSerie = (serie: Serie) => {
-  const labels: Record<Serie, string> = {
+const formatSerie = (serie: string) => {
+  const labels: Record<string, string> = {
     "1ano_infantil": "1º Ano Infantil",
     "2ano_infantil": "2º Ano Infantil",
     "3ano_infantil": "3º Ano Infantil",
@@ -41,18 +42,31 @@ const formatTurno = (turno: Turno) => {
   return labels[turno] || turno;
 };
 
+const formatDisciplinaLabel = (
+  disciplina: string | { nome?: string; codigo?: string }
+) => {
+  if (typeof disciplina === "string") return disciplina;
+  if (disciplina?.nome && disciplina?.codigo) {
+    return `${disciplina.nome} (${disciplina.codigo})`;
+  }
+  return disciplina?.nome || disciplina?.codigo || "Disciplina";
+};
+
 export default function DetalhesTurmaPage() {
   const router = useRouter();
   const params = useParams();
   const id = params.id as string;
+  const { selectedSchool } = useSchool();
 
   const [turma, setTurma] = useState<Turma | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchTurma = async () => {
+    if (!selectedSchool) return;
+
     setIsLoading(true);
     try {
-      const response = await getTurma(id);
+      const response = await getTurma(id, selectedSchool._id);
       const turmaData = response.data || response.payload;
 
       if (turmaData) {
@@ -70,10 +84,11 @@ export default function DetalhesTurmaPage() {
     }
   };
 
+
   useEffect(() => {
     fetchTurma();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id]);
+  }, [id, selectedSchool]);
 
   if (isLoading) {
     return (
@@ -213,6 +228,33 @@ export default function DetalhesTurmaPage() {
         </div>
       </div>
 
+      {/* Configurações de Aula */}
+      <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
+        <h2 className="mb-4 text-lg font-medium text-gray-800 dark:text-white/90">
+          Configurações de Aula
+        </h2>
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+          <div>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Quantidade de Aulas por Dia</p>
+            <p className="mt-1 text-2xl font-semibold text-gray-800 dark:text-white/90">
+              {turma.configuracoes?.quantidadeAulasPorDia || "-"}
+            </p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Máximo de Aulas Consecutivas</p>
+            <p className="mt-1 text-2xl font-semibold text-gray-800 dark:text-white/90">
+              {turma.configuracoes?.maxAulasConsecutivas || "-"}
+            </p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Intervalo Obrigatório (após X aulas)</p>
+            <p className="mt-1 text-2xl font-semibold text-gray-800 dark:text-white/90">
+              {turma.configuracoes?.intervaloObrigatorioAposAulas || "-"}
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Disciplinas */}
       {turma.disciplinas && turma.disciplinas.length > 0 && (
         <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
@@ -226,7 +268,9 @@ export default function DetalhesTurmaPage() {
                 className="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-800 dark:bg-gray-800/50"
               >
                 <p className="text-sm font-medium text-gray-800 dark:text-white/90">
-                  {disc.disciplina}
+                  {formatDisciplinaLabel(
+                    disc.disciplina as unknown as string | { nome?: string; codigo?: string }
+                  )}
                 </p>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
                   {disc.cargaHorariaSemanal}h semanais

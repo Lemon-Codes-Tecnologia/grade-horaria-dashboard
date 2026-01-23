@@ -77,8 +77,10 @@ export default function TurmasPage() {
   };
 
   const handleToggleStatus = async (turma: Turma) => {
+    if (!selectedSchool) return;
+
     try {
-      const response = await toggleTurmaStatus(turma._id);
+      const response = await toggleTurmaStatus(turma._id, selectedSchool._id);
       toast.success(
         response.message ||
           `Turma ${turma.ativa ? "desativada" : "ativada"} com sucesso!`
@@ -94,10 +96,10 @@ export default function TurmasPage() {
   };
 
   const handleDeleteTurma = async () => {
-    if (!turmaToDelete) return;
+    if (!turmaToDelete || !selectedSchool) return;
 
     try {
-      const response = await deleteTurma(turmaToDelete._id);
+      const response = await deleteTurma(turmaToDelete._id, selectedSchool._id);
       toast.success(response.message || "Turma deletada com sucesso!");
       setDeleteModalOpen(false);
       setTurmaToDelete(null);

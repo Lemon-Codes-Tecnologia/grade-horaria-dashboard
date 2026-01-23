@@ -57,9 +57,11 @@ export default function EditarProfessorPage() {
   const [originalNiveisEnsino, setOriginalNiveisEnsino] = useState<NivelEnsino[]>([]); // Níveis originais do professor
 
   // Configuração da grade de horários
-  const [quantidadeAulasPorDia, setQuantidadeAulasPorDia] = useState<number>(6);
+  const [quantidadeAulasPorDia, setQuantidadeAulasPorDia] = useState<number | "">("");
   const [diasComAula, setDiasComAula] = useState<string[]>(['segunda', 'terca', 'quarta', 'quinta', 'sexta']);
-  const [quantidadeMinimaAulasPorDia, setQuantidadeMinimaAulasPorDia] = useState<number>(2);
+  const [quantidadeMinimaAulasPorDia, setQuantidadeMinimaAulasPorDia] = useState<number | "">("");
+
+  const aulasPorDia = quantidadeAulasPorDia ? Number(quantidadeAulasPorDia) : 6;
 
   // Grade de disponibilidade por nível de ensino
   // Estrutura: { nivelEnsino: { dia: [aula1, aula2, aula3...] } }
@@ -96,6 +98,11 @@ export default function EditarProfessorPage() {
         if (professor) {
           console.log("📋 Professor carregado:", professor);
           console.log("📅 Disponibilidade do professor:", professor.disponibilidade);
+          const diasPreferidos =
+            Array.isArray(professor.preferencias?.diasSemanaAula) &&
+            professor.preferencias.diasSemanaAula.length > 0
+              ? professor.preferencias.diasSemanaAula
+              : null;
 
           // Preencher o formulário
           reset({
@@ -106,6 +113,15 @@ export default function EditarProfessorPage() {
             telefone: professor.telefone || "",
             cargaHorariaSemanal: professor.cargaHorariaSemanal,
           });
+          if (typeof professor.preferencias?.maxAulasPorDia === "number") {
+            setQuantidadeAulasPorDia(professor.preferencias.maxAulasPorDia);
+          }
+          if (typeof professor.preferencias?.minAulasPorDia === "number") {
+            setQuantidadeMinimaAulasPorDia(professor.preferencias.minAulasPorDia);
+          }
+          if (diasPreferidos) {
+            setDiasComAula(diasPreferidos);
+          }
 
           // Selecionar disciplinas
           if (professor.disciplinas) {
@@ -129,6 +145,7 @@ export default function EditarProfessorPage() {
 
               // Carregar disponibilidade existente e garantir todos os dias
               const gradesIniciais: Record<NivelEnsino, Record<string, boolean[]>> = {} as Record<NivelEnsino, Record<string, boolean[]>>;
+              const diasParaGrade = diasPreferidos || diasComAula;
 
               professor.nivelEnsino.forEach((nivel: NivelEnsino) => {
                 console.log(`📝 Processando nível: ${nivel}`);
@@ -137,7 +154,7 @@ export default function EditarProfessorPage() {
                 gradesIniciais[nivel] = {};
 
                 // Para cada dia que está configurado na interface
-                diasComAula.forEach((dia) => {
+                diasParaGrade.forEach((dia) => {
                   const disponibilidadeSalva = professor.disponibilidade?.[nivel]?.[dia];
                   console.log(`🔍 Verificando ${nivel} - ${dia}:`, disponibilidadeSalva, "é array?", Array.isArray(disponibilidadeSalva));
 
@@ -146,14 +163,14 @@ export default function EditarProfessorPage() {
                     gradesIniciais[nivel][dia] = [...disponibilidadeSalva];
                   } else {
                     console.log(`➖ Inicializando vazio ${nivel} - ${dia}`);
-                    gradesIniciais[nivel][dia] = Array(quantidadeAulasPorDia).fill(false);
+                    gradesIniciais[nivel][dia] = Array(aulasPorDia).fill(false);
                   }
                 });
 
                 // Também incluir dias que estão salvos mas não estão em diasComAula
                 if (professor.disponibilidade[nivel]) {
                   Object.keys(professor.disponibilidade[nivel]).forEach((dia) => {
-                    if (!diasComAula.includes(dia)) {
+                    if (!diasParaGrade.includes(dia)) {
                       console.log(`📌 Adicionando dia extra: ${dia}`);
                       gradesIniciais[nivel][dia] = [...professor.disponibilidade[nivel][dia]];
                       // Adicionar o dia à lista de dias com aula
@@ -170,10 +187,11 @@ export default function EditarProfessorPage() {
 
               // Inicializar grades vazias para cada nível
               const gradesIniciais: Record<NivelEnsino, Record<string, boolean[]>> = {} as Record<NivelEnsino, Record<string, boolean[]>>;
+              const diasParaGrade = diasPreferidos || diasComAula;
               professor.nivelEnsino.forEach((nivel: NivelEnsino) => {
                 gradesIniciais[nivel] = {};
-                diasComAula.forEach((dia) => {
-                  gradesIniciais[nivel][dia] = Array(quantidadeAulasPorDia).fill(false);
+                diasParaGrade.forEach((dia) => {
+                  gradesIniciais[nivel][dia] = Array(aulasPorDia).fill(false);
                 });
               });
               setDisponibilidadePorNivel(gradesIniciais);
@@ -269,7 +287,7 @@ export default function EditarProfessorPage() {
         // Adiciona o nível com grade vazia
         const gradeVazia: Record<string, boolean[]> = {};
         diasComAula.forEach((dia) => {
-          gradeVazia[dia] = Array(quantidadeAulasPorDia).fill(false);
+          gradeVazia[dia] = Array(aulasPorDia).fill(false);
         });
         setDisponibilidadePorNivel((prevDisp) => ({
           ...prevDisp,
@@ -319,7 +337,7 @@ export default function EditarProfessorPage() {
         // Adiciona o dia em todas as grades com horários desmarcados
         const newDisp = { ...disponibilidadePorNivel };
         Object.keys(newDisp).forEach((nivel) => {
-          newDisp[nivel as NivelEnsino][dia] = Array(quantidadeAulasPorDia).fill(false);
+          newDisp[nivel as NivelEnsino][dia] = Array(aulasPorDia).fill(false);
         });
         setDisponibilidadePorNivel(newDisp);
         return [...prev, dia];
@@ -384,17 +402,17 @@ export default function EditarProfessorPage() {
       diasComAula.forEach((dia) => {
         const horariosAtuais = newDisp[nivelKey]?.[dia] || [];
         // Ajusta o array para o novo tamanho
-        if (horariosAtuais.length < quantidadeAulasPorDia) {
+        if (horariosAtuais.length < aulasPorDia) {
           // Adiciona false para as novas aulas
           newDisp[nivelKey] = {
             ...newDisp[nivelKey],
-            [dia]: [...horariosAtuais, ...Array(quantidadeAulasPorDia - horariosAtuais.length).fill(false)],
+            [dia]: [...horariosAtuais, ...Array(aulasPorDia - horariosAtuais.length).fill(false)],
           };
         } else {
           // Trunca se diminuiu
           newDisp[nivelKey] = {
             ...newDisp[nivelKey],
-            [dia]: horariosAtuais.slice(0, quantidadeAulasPorDia),
+            [dia]: horariosAtuais.slice(0, aulasPorDia),
           };
         }
       });
@@ -402,7 +420,7 @@ export default function EditarProfessorPage() {
 
     setDisponibilidadePorNivel(newDisp);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [quantidadeAulasPorDia]);
+  }, [quantidadeAulasPorDia, aulasPorDia]);
 
   const formatCPF = (value: string) => {
     const numbers = value.replace(/\D/g, "");
@@ -436,6 +454,18 @@ export default function EditarProfessorPage() {
   const onSubmit = async (data: ProfessorFormData) => {
     setIsSubmitting(true);
     try {
+      const maxAulasPorDia =
+        typeof quantidadeAulasPorDia === "number" ? quantidadeAulasPorDia : undefined;
+      const minAulasPorDia =
+        typeof quantidadeMinimaAulasPorDia === "number" ? quantidadeMinimaAulasPorDia : undefined;
+      const preferenciasPayload = {
+        maxAulasPorDia,
+        minAulasPorDia,
+        diasSemanaAula: diasComAula.length > 0 ? diasComAula : undefined,
+      };
+      const hasPreferencias = Object.values(preferenciasPayload).some(
+        (value) => value !== undefined
+      );
       const payload = {
         nome: data.nome,
         email: data.email,
@@ -449,6 +479,7 @@ export default function EditarProfessorPage() {
         nivelEnsino: selectedNiveisEnsino.length > 0 ? selectedNiveisEnsino : undefined,
         disciplinas: selectedDisciplinas.length > 0 ? selectedDisciplinas : undefined,
         disponibilidade: Object.keys(disponibilidadePorNivel).length > 0 ? disponibilidadePorNivel : undefined,
+        preferencias: hasPreferencias ? preferenciasPayload : undefined,
       };
 
       const response = await updateProfessor(id, payload);
@@ -846,7 +877,15 @@ export default function EditarProfessorPage() {
                     min={1}
                     max={12}
                     value={quantidadeAulasPorDia}
-                    onChange={(e) => setQuantidadeAulasPorDia(parseInt(e.target.value) || 6)}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (!value) {
+                        setQuantidadeAulasPorDia("");
+                        return;
+                      }
+                      const parsed = parseInt(value, 10);
+                      setQuantidadeAulasPorDia(Number.isNaN(parsed) ? "" : parsed);
+                    }}
                     placeholder="6"
                   />
                   <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
@@ -859,9 +898,17 @@ export default function EditarProfessorPage() {
                   <Input
                     type="number"
                     min={1}
-                    max={quantidadeAulasPorDia}
+                    max={aulasPorDia}
                     value={quantidadeMinimaAulasPorDia}
-                    onChange={(e) => setQuantidadeMinimaAulasPorDia(parseInt(e.target.value) || 2)}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (!value) {
+                        setQuantidadeMinimaAulasPorDia("");
+                        return;
+                      }
+                      const parsed = parseInt(value, 10);
+                      setQuantidadeMinimaAulasPorDia(Number.isNaN(parsed) ? "" : parsed);
+                    }}
                     placeholder="2"
                   />
                   <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
@@ -961,7 +1008,7 @@ export default function EditarProfessorPage() {
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                            {Array.from({ length: quantidadeAulasPorDia }, (_, index) => (
+                            {Array.from({ length: aulasPorDia }, (_, index) => (
                               <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
                                 <td className="sticky left-0 bg-white py-2 px-3 text-xs font-medium text-gray-700 dark:bg-gray-900 dark:text-gray-300">
                                   {index + 1}º

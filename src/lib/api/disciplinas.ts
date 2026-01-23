@@ -76,11 +76,10 @@ export const listDisciplinas = async (
 };
 
 /**
- * POST /api/disciplinas
+ * POST /api/disciplinas?idEscola=xxx
  * Cria nova disciplina atrelada à escola do usuário logado
  */
 export interface CreateDisciplinaData {
-  idEscola: string;
   nome: string; // 2-100 caracteres
   codigo: string; // 2-20 caracteres, A-Z/0-9
   cargaHoraria: number; // > 0
@@ -93,28 +92,33 @@ export interface CreateDisciplinaData {
 }
 
 export const createDisciplina = async (
-  data: CreateDisciplinaData
+  data: CreateDisciplinaData,
+  idEscola: string
 ): Promise<ApiResponse<Disciplina>> => {
+  const params = { idEscola };
   const response = await apiClient.post<ApiResponse<Disciplina>>(
     "/api/disciplinas",
-    data
+    data,
+    { params }
   );
   return response.data;
 };
 
 /**
- * GET /api/disciplinas/:id
+ * GET /api/disciplinas/:id?idEscola=xxx
  * Busca disciplina por ID (deve pertencer à mesma escola)
  */
-export const getDisciplina = async (id: string): Promise<ApiResponse<Disciplina>> => {
+export const getDisciplina = async (id: string, idEscola?: string): Promise<ApiResponse<Disciplina>> => {
+  const params = idEscola ? { idEscola } : undefined;
   const response = await apiClient.get<ApiResponse<Disciplina>>(
-    `/api/disciplinas/${id}`
+    `/api/disciplinas/${id}`,
+    { params }
   );
   return response.data;
 };
 
 /**
- * PUT /api/disciplinas/:id
+ * PUT /api/disciplinas/:id?idEscola=xxx
  * Atualiza disciplina (escola não pode ser trocada)
  */
 export interface UpdateDisciplinaData {
@@ -128,40 +132,48 @@ export interface UpdateDisciplinaData {
   restricoesPeriodo?: RestricaoPeriodo[];
   salaEspecifica?: string;
   ativa?: boolean;
-  idEscola?: string;
 }
 
 export const updateDisciplina = async (
   id: string,
-  data: UpdateDisciplinaData
+  data: UpdateDisciplinaData,
+  idEscola?: string
 ): Promise<ApiResponse<Disciplina>> => {
+  const params = idEscola ? { idEscola } : undefined;
   const response = await apiClient.put<ApiResponse<Disciplina>>(
     `/api/disciplinas/${id}`,
-    data
+    data,
+    { params }
   );
   return response.data;
 };
 
 /**
- * DELETE /api/disciplinas/:id
+ * DELETE /api/disciplinas/:id?idEscola=xxx
  * Remove disciplina da escola do usuário
  */
-export const deleteDisciplina = async (id: string): Promise<ApiResponse<null>> => {
+export const deleteDisciplina = async (id: string, idEscola?: string): Promise<ApiResponse<null>> => {
+  const params = idEscola ? { idEscola } : undefined;
   const response = await apiClient.delete<ApiResponse<null>>(
-    `/api/disciplinas/${id}`
+    `/api/disciplinas/${id}`,
+    { params }
   );
   return response.data;
 };
 
 /**
- * PATCH /api/disciplinas/:id/toggle-active
+ * PATCH /api/disciplinas/:id/toggle-active?idEscola=xxx
  * Alterna status ativa/inativa
  */
 export const toggleDisciplinaStatus = async (
-  id: string
+  id: string,
+  idEscola?: string
 ): Promise<ApiResponse<Disciplina>> => {
+  const params = idEscola ? { idEscola } : undefined;
   const response = await apiClient.patch<ApiResponse<Disciplina>>(
-    `/api/disciplinas/${id}/toggle-active`
+    `/api/disciplinas/${id}/toggle-active`,
+    undefined,
+    { params }
   );
   return response.data;
 };

@@ -49,7 +49,6 @@ const disciplinaSchema = z.object({
   tipo: z.enum(["regular", "laboratorio", "educacao_fisica", "arte"], {
     message: "Tipo de disciplina é obrigatório",
   }),
-  requerSequencia: z.boolean().optional(),
   salaEspecifica: z.string().optional().or(z.literal("")),
 });
 
@@ -83,7 +82,6 @@ export default function CriarDisciplinaPage() {
       cor: "#007bff",
       descricao: "",
       salaEspecifica: "",
-      requerSequencia: false,
     },
   });
 
@@ -108,7 +106,6 @@ export default function CriarDisciplinaPage() {
         cor: data.cor || undefined,
         descricao: data.descricao || undefined,
         tipo: data.tipo,
-        requerSequencia: data.requerSequencia || undefined,
         salaEspecifica: data.salaEspecifica || undefined,
       });
 
@@ -298,29 +295,6 @@ export default function CriarDisciplinaPage() {
             </h2>
 
             <div className="space-y-4">
-              {/* Requer Sequência */}
-              <div className="flex items-center gap-3">
-                <Controller
-                  name="requerSequencia"
-                  control={control}
-                  render={({ field }) => (
-                    <input
-                      type="checkbox"
-                      {...field}
-                      value={field.value ? "true" : "false"}
-                      checked={field.value}
-                      className="h-4 w-4 rounded border-gray-300 text-brand-500 focus:ring-brand-500"
-                    />
-                  )}
-                />
-                <div>
-                  <Label className="mb-0">Requer Sequência</Label>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Indica se a disciplina deve ser ministrada em sequência (ex: Matemática I, II, III)
-                  </p>
-                </div>
-              </div>
-
               {/* Sala Específica */}
               <div>
                 <Label>Sala Específica</Label>

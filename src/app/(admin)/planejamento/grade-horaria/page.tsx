@@ -13,9 +13,13 @@ import {
   validarGradeHoraria,
   type GradeHoraria,
   type StatusGrade,
+  type StatusGeracao,
 } from "@/lib/api/grades-horarias";
 import { listTurmas, type Turma } from "@/lib/api/turmas";
 import { useSchool } from "@/context/SchoolContext";
+import { useGradePolling } from "@/hooks/useGradePolling";
+import { useModal } from "@/hooks/useModal";
+import { ConfirmDialog } from "@/components/ui/modal/ConfirmDialog";
 
 export default function GradesHorariasPage() {
   const router = useRouter();
@@ -29,6 +33,24 @@ export default function GradesHorariasPage() {
   const [statusFilter, setStatusFilter] = useState<StatusGrade | "">("");
   const [turmaFilter, setTurmaFilter] = useState("");
   const [anoLetivoFilter, setAnoLetivoFilter] = useState("");
+
+  // Modais de confirmação
+  const deleteModal = useModal();
+  const validarModal = useModal();
+  const [selectedGrade, setSelectedGrade] = useState<{ id: string; nome: string } | null>(null);
+
+  // Polling para monitorar geração de grades em tempo real
+  useGradePolling(grades, {
+    onComplete: () => {
+      // Recarrega a lista quando uma grade for concluída
+      fetchGrades();
+    },
+    onError: () => {
+      // Recarrega a lista quando houver erro
+      fetchGrades();
+    },
+    interval: 30000, // Verifica a cada 30 segundos
+  });
 
   // Carregar turmas para o filtro
   useEffect(() => {
@@ -60,7 +82,7 @@ export default function GradesHorariasPage() {
   }, [currentPage, search, statusFilter, turmaFilter, anoLetivoFilter, selectedSchool]);
 
   const fetchGrades = async () => {
-    if (!selectedSchool) {
+    if (!selectedSchool || !selectedSchool._id) {
       setGrades([]);
       setIsLoading(false);
       return;
@@ -87,6 +109,7 @@ export default function GradesHorariasPage() {
         setTotalPages(gradesData.totalPages);
       }
     } catch (error: any) {
+      console.error("Erro ao buscar grades:", error);
       toast.error("Erro ao carregar grades horárias", {
         description: error.response?.data?.message || "Ocorreu um erro ao buscar as grades.",
       });
@@ -95,13 +118,16 @@ export default function GradesHorariasPage() {
     }
   };
 
-  const handleDelete = async (id: string, nome: string) => {
-    if (!confirm(`Tem certeza que deseja excluir a grade "${nome}"?`)) {
-      return;
-    }
+  const handleDeleteClick = (id: string, nome: string) => {
+    setSelectedGrade({ id, nome });
+    deleteModal.openModal();
+  };
+
+  const handleDelete = async () => {
+    if (!selectedGrade || !selectedSchool) return;
 
     try {
-      await deleteGradeHoraria(id);
+      await deleteGradeHoraria(selectedGrade.id, selectedSchool._id);
       toast.success("Grade excluída com sucesso!");
       fetchGrades();
     } catch (error: any) {
@@ -111,13 +137,16 @@ export default function GradesHorariasPage() {
     }
   };
 
-  const handleValidar = async (id: string, nome: string) => {
-    if (!confirm(`Tem certeza que deseja validar a grade "${nome}"? Esta ação não pode ser desfeita.`)) {
-      return;
-    }
+  const handleValidarClick = (id: string, nome: string) => {
+    setSelectedGrade({ id, nome });
+    validarModal.openModal();
+  };
+
+  const handleValidar = async () => {
+    if (!selectedGrade || !selectedSchool) return;
 
     try {
-      await validarGradeHoraria(id);
+      await validarGradeHoraria(selectedGrade.id, selectedSchool._id);
       toast.success("Grade validada com sucesso!");
       fetchGrades();
     } catch (error: any) {
@@ -143,6 +172,43 @@ export default function GradesHorariasPage() {
     return (
       <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${badges[status]}`}>
         {labels[status]}
+      </span>
+    );
+  };
+
+  const getGeracaoBadge = (statusGeracao?: StatusGeracao) => {
+    if (!statusGeracao) return null;
+
+    const configs = {
+      pendente: {
+        icon: "⏳",
+        label: "Pendente",
+        className: "bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400",
+      },
+      processando: {
+        icon: "⚙️",
+        label: "Gerando...",
+        className: "bg-orange-100 text-orange-700 dark:bg-orange-500/10 dark:text-orange-400 animate-pulse",
+      },
+      concluida: {
+        icon: "✅",
+        label: "Concluída",
+        className: "bg-green-100 text-green-700 dark:bg-green-500/10 dark:text-green-400",
+      },
+      falhou: {
+        icon: "❌",
+        label: "Falhou",
+        className: "bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400",
+      },
+    };
+
+    const config = configs[statusGeracao];
+    if (!config) return null;
+
+    return (
+      <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${config.className}`}>
+        <span>{config.icon}</span>
+        <span>{config.label}</span>
       </span>
     );
   };
@@ -302,12 +368,23 @@ export default function GradesHorariasPage() {
                   >
                     <td className="px-6 py-4">
                       <div>
-                        <p className="text-sm font-medium text-gray-800 dark:text-white/90">
-                          {grade.nome}
-                        </p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-medium text-gray-800 dark:text-white/90">
+                            {grade.nome}
+                          </p>
+                          {grade.geracao && getGeracaoBadge(grade.geracao.status)}
+                        </div>
                         {grade.descricao && (
-                          <p className="text-xs text-gray-500 dark:text-gray-400">
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                             {grade.descricao}
+                          </p>
+                        )}
+                        {grade.geracao?.status === "falhou" && grade.geracao.erros && grade.geracao.erros.length > 0 && (
+                          <p className="text-xs text-error-600 dark:text-error-400 mt-1 flex items-start gap-1">
+                            <svg className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                            </svg>
+                            <span>{grade.geracao.erros[0]}</span>
                           </p>
                         )}
                       </div>
@@ -339,14 +416,14 @@ export default function GradesHorariasPage() {
                               </button>
                             </Link>
                             <button
-                              onClick={() => handleValidar(grade._id, grade.nome)}
+                              onClick={() => handleValidarClick(grade._id, grade.nome)}
                               className="rounded-lg p-2 text-green-500 hover:bg-green-50 dark:hover:bg-green-500/10"
                               disabled={!grade.horarios || grade.horarios.length === 0}
                             >
                               Validar
                             </button>
                             <button
-                              onClick={() => handleDelete(grade._id, grade.nome)}
+                              onClick={() => handleDeleteClick(grade._id, grade.nome)}
                               className="rounded-lg p-2 text-error-500 hover:bg-error-50 dark:hover:bg-error-500/10"
                             >
                               Excluir
@@ -385,6 +462,29 @@ export default function GradesHorariasPage() {
           </div>
         )}
       </div>
+
+      {/* Modais de Confirmação */}
+      <ConfirmDialog
+        isOpen={deleteModal.isOpen}
+        onClose={deleteModal.closeModal}
+        onConfirm={handleDelete}
+        title="Excluir Grade"
+        description={`Tem certeza que deseja excluir a grade "${selectedGrade?.nome}"? Esta ação não pode ser desfeita.`}
+        confirmText="Excluir"
+        cancelText="Cancelar"
+        variant="danger"
+      />
+
+      <ConfirmDialog
+        isOpen={validarModal.isOpen}
+        onClose={validarModal.closeModal}
+        onConfirm={handleValidar}
+        title="Validar Grade"
+        description={`Tem certeza que deseja validar a grade "${selectedGrade?.nome}"? Esta ação não pode ser desfeita.`}
+        confirmText="Validar"
+        cancelText="Cancelar"
+        variant="warning"
+      />
     </div>
   );
 }

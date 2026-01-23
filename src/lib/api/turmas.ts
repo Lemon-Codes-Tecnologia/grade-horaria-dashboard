@@ -1,4 +1,5 @@
 import apiClient from "./client";
+import type { DiaSemana } from "./escolas";
 
 // ============================================================================
 // TYPES & INTERFACES
@@ -19,20 +20,42 @@ export interface Disciplina {
   cargaHorariaSemanal: number;
 }
 
+export interface ConfiguracoesTurma {
+  quantidadeAulasPorDia?: number;
+  maxAulasConsecutivas?: number;
+  intervaloObrigatorioAposAulas?: number;
+  diasLetivos?: DiaSemana[];
+}
+
 export interface Turma {
   _id: string;
   escola: string; // ObjectId da escola
   nome: string;
   codigo: string; // Código único por escola (A-Z/0-9, 2-20 chars)
-  serie: Serie;
-  ano: number; // 1-12 (obrigatório)
+  serie: string; // 1-50 chars
+  ano: number; // 1-12
   turno: Turno;
-  capacidadeMaxima: number; // Obrigatório
+  capacidadeMaxima: number;
   quantidadeAlunos?: number;
   sala?: string;
-  anoLetivo: number; // 2020-2030
+  anoLetivo?: number; // 2020-2030
   professorResponsavel?: string; // ObjectId do professor
-  disciplinas?: Disciplina[];
+  diasLetivos?: DiaSemana[];
+  alunos?: Array<{
+    nomeAluno: string;
+    cpfAluno: string;
+    emailAluno?: string;
+    nomeResponsavel: string;
+    cpfResponsavel: string;
+    emailResponsavel?: string;
+    telefoneResponsavel?: string;
+  }>;
+  disciplinas?: Array<{
+    _id?: string;
+    disciplina: string;
+    cargaHorariaSemanal: number;
+  }>;
+  configuracoes?: ConfiguracoesTurma;
   ativa: boolean;
   createdAt?: string;
   updatedAt?: string;
@@ -66,16 +89,17 @@ export interface PaginationData {
 /**
  * GET /api/turmas
  * Lista turmas da escola do usuário autenticado
+ * idEscola é obrigatório (query param)
  */
 export interface ListTurmasParams {
-  idEscola?: string;
+  idEscola: string; // Obrigatório na query
   page?: number;
   limit?: number;
   search?: string;
   turno?: Turno;
   ano?: number;
   anoLetivo?: number;
-  serie?: Serie;
+  serie?: string;
   ativa?: boolean;
 }
 
@@ -90,31 +114,47 @@ export const listTurmas = async (
 };
 
 /**
- * POST /api/turmas
+ * POST /api/turmas?idEscola=xxx
  * Cria nova turma na escola do usuário
  * Obrigatórios: nome, codigo (A-Z/0-9, 2-20 chars), ano (1-12), serie, turno, capacidadeMaxima
  */
 export interface CreateTurmaData {
-  idEscola: string;
-  nome: string;
-  codigo: string; // A-Z/0-9, 2-20 chars
-  serie: Serie;
-  ano: number; // 1-12
-  turno: Turno;
-  capacidadeMaxima: number;
-  quantidadeAlunos?: number;
-  sala?: string;
-  anoLetivo?: number; // 2020-2030
-  professorResponsavel?: string;
-  disciplinas?: Disciplina[];
+  nome: string; // 2-100 chars
+  codigo: string; // A-Z/0-9, 2-20 chars (maiúsculo)
+  ano: number; // int 1-12 (obrigatório)
+  serie: string; // 1-50 chars (obrigatório)
+  turno: Turno; // manha | tarde | noite | integral
+  capacidadeMaxima: number; // int > 0 (obrigatório)
+  quantidadeAlunos?: number; // int >= 0 (opcional)
+  sala?: string; // max 50 chars (opcional)
+  anoLetivo?: number; // int 2020-2030 (opcional)
+  professorResponsavel?: string; // MongoId (opcional)
+  diasLetivos?: DiaSemana[];
+  alunos?: Array<{
+    nomeAluno: string;
+    cpfAluno: string; // 11 dígitos
+    emailAluno?: string;
+    nomeResponsavel: string;
+    cpfResponsavel: string; // 11 dígitos
+    emailResponsavel?: string;
+    telefoneResponsavel?: string; // max 20 chars
+  }>;
+  disciplinas?: Array<{
+    disciplina: string; // MongoId
+    cargaHorariaSemanal: number; // int > 0
+  }>;
+  configuracoes?: ConfiguracoesTurma;
 }
 
 export const createTurma = async (
-  data: CreateTurmaData
+  data: CreateTurmaData,
+  idEscola: string
 ): Promise<ApiResponse<Turma>> => {
+  const params = { idEscola };
   const response = await apiClient.post<ApiResponse<Turma>>(
     "/api/turmas",
-    data
+    data,
+    { params }
   );
   return response.data;
 };
@@ -122,40 +162,63 @@ export const createTurma = async (
 /**
  * GET /api/turmas/:id
  * Busca turma por ID
+ * Para múltiplas escolas: GET /api/turmas/:id?idEscola=ID_ESCOLA
  */
-export const getTurma = async (id: string): Promise<ApiResponse<Turma>> => {
+export const getTurma = async (
+  id: string,
+  idEscola?: string
+): Promise<ApiResponse<Turma>> => {
+  const params = idEscola ? { idEscola } : undefined;
   const response = await apiClient.get<ApiResponse<Turma>>(
-    `/api/turmas/${id}`
+    `/api/turmas/${id}`,
+    { params }
   );
   return response.data;
 };
 
 /**
- * PUT /api/turmas/:id
+ * PUT /api/turmas/:id?idEscola=xxx
  * Atualiza turma
  */
 export interface UpdateTurmaData {
-  idEscola?: string;
-  nome?: string;
-  codigo?: string;
-  serie?: Serie;
-  ano?: number;
-  turno?: Turno;
-  capacidadeMaxima?: number;
-  sala?: string;
-  anoLetivo?: number;
-  professorResponsavel?: string;
-  disciplinas?: Disciplina[];
+  nome?: string; // 2-100 chars
+  codigo?: string; // A-Z/0-9, 2-20 chars (maiúsculo)
+  ano?: number; // int 1-12
+  serie?: string; // 1-50 chars
+  turno?: Turno; // manha | tarde | noite | integral
+  capacidadeMaxima?: number; // int > 0
+  quantidadeAlunos?: number; // int >= 0
+  sala?: string; // max 50 chars
+  anoLetivo?: number; // int 2020-2030
+  professorResponsavel?: string; // MongoId
+  diasLetivos?: DiaSemana[];
+  alunos?: Array<{
+    nomeAluno: string;
+    cpfAluno: string; // 11 dígitos
+    emailAluno?: string;
+    nomeResponsavel: string;
+    cpfResponsavel: string; // 11 dígitos
+    emailResponsavel?: string;
+    telefoneResponsavel?: string; // max 20 chars
+  }>;
+  disciplinas?: Array<{
+    disciplina: string; // MongoId
+    cargaHorariaSemanal: number; // int > 0
+  }>;
+  configuracoes?: ConfiguracoesTurma;
   ativa?: boolean;
 }
 
 export const updateTurma = async (
   id: string,
-  data: UpdateTurmaData
+  data: UpdateTurmaData,
+  idEscola?: string
 ): Promise<ApiResponse<Turma>> => {
+  const params = idEscola ? { idEscola } : undefined;
   const response = await apiClient.put<ApiResponse<Turma>>(
     `/api/turmas/${id}`,
-    data
+    data,
+    { params }
   );
   return response.data;
 };
@@ -163,10 +226,16 @@ export const updateTurma = async (
 /**
  * DELETE /api/turmas/:id
  * Remove turma
+ * Para múltiplas escolas: DELETE /api/turmas/:id?idEscola=ID_ESCOLA
  */
-export const deleteTurma = async (id: string): Promise<ApiResponse<null>> => {
+export const deleteTurma = async (
+  id: string,
+  idEscola?: string
+): Promise<ApiResponse<null>> => {
+  const params = idEscola ? { idEscola } : undefined;
   const response = await apiClient.delete<ApiResponse<null>>(
-    `/api/turmas/${id}`
+    `/api/turmas/${id}`,
+    { params }
   );
   return response.data;
 };
@@ -174,12 +243,17 @@ export const deleteTurma = async (id: string): Promise<ApiResponse<null>> => {
 /**
  * PATCH /api/turmas/:id/toggle-active
  * Alterna status ativa/inativa
+ * Para múltiplas escolas: PATCH /api/turmas/:id/toggle-active?idEscola=ID_ESCOLA
  */
 export const toggleTurmaStatus = async (
-  id: string
+  id: string,
+  idEscola?: string
 ): Promise<ApiResponse<Turma>> => {
+  const params = idEscola ? { idEscola } : undefined;
   const response = await apiClient.patch<ApiResponse<Turma>>(
-    `/api/turmas/${id}/toggle-active`
+    `/api/turmas/${id}/toggle-active`,
+    {},
+    { params }
   );
   return response.data;
 };
@@ -187,6 +261,7 @@ export const toggleTurmaStatus = async (
 /**
  * POST /api/turmas/:id/disciplinas
  * Adiciona disciplina à turma
+ * Para múltiplas escolas: POST /api/turmas/:id/disciplinas?idEscola=ID_ESCOLA
  */
 export interface AddDisciplinaData {
   disciplina: string; // ObjectId da disciplina
@@ -195,11 +270,14 @@ export interface AddDisciplinaData {
 
 export const addDisciplina = async (
   turmaId: string,
-  data: AddDisciplinaData
+  data: AddDisciplinaData,
+  idEscola?: string
 ): Promise<ApiResponse<Turma>> => {
+  const params = idEscola ? { idEscola } : undefined;
   const response = await apiClient.post<ApiResponse<Turma>>(
     `/api/turmas/${turmaId}/disciplinas`,
-    data
+    data,
+    { params }
   );
   return response.data;
 };
@@ -207,13 +285,17 @@ export const addDisciplina = async (
 /**
  * DELETE /api/turmas/:id/disciplinas/:disciplinaId
  * Remove disciplina da turma
+ * Para múltiplas escolas: DELETE /api/turmas/:id/disciplinas/:disciplinaId?idEscola=ID_ESCOLA
  */
 export const removeDisciplina = async (
   turmaId: string,
-  disciplinaId: string
+  disciplinaId: string,
+  idEscola?: string
 ): Promise<ApiResponse<Turma>> => {
+  const params = idEscola ? { idEscola } : undefined;
   const response = await apiClient.delete<ApiResponse<Turma>>(
-    `/api/turmas/${turmaId}/disciplinas/${disciplinaId}`
+    `/api/turmas/${turmaId}/disciplinas/${disciplinaId}`,
+    { params }
   );
   return response.data;
 };

@@ -186,7 +186,7 @@ export default function DetalhesDisciplinaPage() {
         <div className="space-y-6">
           <div>
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              Requer Sequência
+              Permite Sequência
             </p>
             <p className="mt-1">
               <span

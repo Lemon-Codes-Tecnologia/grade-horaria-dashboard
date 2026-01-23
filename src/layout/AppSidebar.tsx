@@ -311,8 +311,8 @@ const AppSidebar: React.FC = () => {
           )}
         </Link>
       </div>
-      <div className="flex flex-col overflow-y-auto duration-300 ease-linear no-scrollbar">
-        <nav className="mb-6">
+      <div className="flex min-h-0 flex-1 flex-col">
+        <nav className="mb-6 flex-1 overflow-y-auto duration-300 ease-linear no-scrollbar">
           <div className="flex flex-col gap-4">
             <div>
               <h2
@@ -351,7 +351,11 @@ const AppSidebar: React.FC = () => {
             )}
           </div>
         </nav>
-        {isExpanded || isHovered || isMobileOpen ? <SidebarWidget /> : null}
+        {isExpanded || isHovered || isMobileOpen ? (
+          <div className="pb-6">
+            <SidebarWidget />
+          </div>
+        ) : null}
       </div>
     </aside>
   );

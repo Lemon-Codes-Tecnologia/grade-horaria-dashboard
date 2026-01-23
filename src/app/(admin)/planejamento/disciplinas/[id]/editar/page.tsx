@@ -373,7 +373,7 @@ export default function EditarDisciplinaPage() {
                 </div>
               </div>
 
-              {/* Requer Sequência */}
+              {/* Permite Sequência */}
               <div className="flex items-center gap-3">
                 <Controller
                   name="requerSequencia"
@@ -389,9 +389,9 @@ export default function EditarDisciplinaPage() {
                   )}
                 />
                 <div>
-                  <Label className="mb-0">Requer Sequência</Label>
+                  <Label className="mb-0">Permite Sequência</Label>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Indica se a disciplina deve ser ministrada em sequência (ex: Matemática I, II, III)
+                    Indica se a disciplina permite ser ministrada em sequência (ex: Matemática I, II, III)
                   </p>
                 </div>
               </div>

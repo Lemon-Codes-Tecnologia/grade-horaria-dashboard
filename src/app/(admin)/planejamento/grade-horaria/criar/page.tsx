@@ -1,31 +1,34 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useForm, Controller } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import Input from "@/components/form/input/InputField";
 import Label from "@/components/form/Label";
 import Button from "@/components/ui/button/Button";
 import { ChevronLeftIcon } from "@/icons";
 import Link from "next/link";
 import {
   createGradeHoraria,
-  type Semestre,
   type NivelOtimizacao,
+  type Horario,
+  type DiaSemana,
+  type Periodo,
 } from "@/lib/api/grades-horarias";
-import { listTurmas } from "@/lib/api/turmas";
-import { listProfessores } from "@/lib/api/professores";
-import { listDisciplinas } from "@/lib/api/disciplinas";
-import { type NivelEnsino } from "@/lib/api/escolas";
+import { listTurmas, type Turma } from "@/lib/api/turmas";
+import { listProfessores, type Professor } from "@/lib/api/professores";
+import { listDisciplinas, type Disciplina } from "@/lib/api/disciplinas";
 import { useSchool } from "@/context/SchoolContext";
+import GradeHorariaEditor from "@/components/grade-horaria/GradeHorariaEditor";
+import AddHorarioModal from "@/components/grade-horaria/AddHorarioModal";
+import { useModal } from "@/hooks/useModal";
 
 // Validation schema
 const gradeSchema = z.object({
-  nivelEnsino: z.string().min(1, "Selecione um nível de ensino"),
-  anoLetivo: z.string().min(4, "Ano letivo é obrigatório"),
-  semestre: z.enum(["1", "2"], { message: "Selecione o semestre" }),
+  turma: z.string().min(1, "Selecione uma turma"),
+  nome: z.string().min(1, "Nome da grade é obrigatório"),
+  descricao: z.string().optional(),
 });
 
 type GradeFormData = z.infer<typeof gradeSchema>;
@@ -35,9 +38,22 @@ export default function CriarGradeHorariaPage() {
   const { selectedSchool } = useSchool();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [turmas, setTurmas] = useState<Turma[]>([]);
+  const [loadingTurmas, setLoadingTurmas] = useState(true);
 
-  // Estatísticas de validação por nível de ensino
-  const [turmasPorNivel, setTurmasPorNivel] = useState<Record<string, number>>({});
+  // Horários manuais
+  const [horariosManuais, setHorariosManuais] = useState<Horario[]>([]);
+  const [professores, setProfessores] = useState<Professor[]>([]);
+  const [disciplinas, setDisciplinas] = useState<Disciplina[]>([]);
+  const [horarioSelecionadoCelula, setHorarioSelecionadoCelula] = useState<{
+    dia: DiaSemana;
+    horaInicio: string;
+    horaFim: string;
+  } | null>(null);
+
+  const addHorarioModal = useModal();
+
+  // Estatísticas de validação
   const [stats, setStats] = useState({
     professores: 0,
     disciplinas: 0,
@@ -54,78 +70,91 @@ export default function CriarGradeHorariaPage() {
     register,
     handleSubmit,
     formState: { errors },
-    control,
     watch,
+    setValue,
   } = useForm<GradeFormData>({
     resolver: zodResolver(gradeSchema),
     defaultValues: {
-      anoLetivo: new Date().getFullYear().toString(),
-      semestre: "1",
-      nivelEnsino: "",
+      turma: "",
+      nome: "",
+      descricao: "",
     },
   });
 
-  const nivelEnsinoSelecionado = watch("nivelEnsino");
+  const turmaSelecionada = watch("turma");
 
-  // Todos os níveis de ensino possíveis
-  const todosNiveisEnsino: { value: NivelEnsino; label: string }[] = [
-    { value: "infantil", label: "Infantil" },
-    { value: "fundamental1", label: "Fundamental I" },
-    { value: "fundamental2", label: "Fundamental II" },
-    { value: "medio", label: "Médio" },
-    { value: "eja", label: "EJA" },
-    { value: "superior", label: "Superior" },
-  ];
-
-  // Filtra os níveis de ensino baseado na escola selecionada
-  const niveisEnsinoDisponiveis = todosNiveisEnsino.filter(nivel =>
-    selectedSchool?.nivelEnsino?.includes(nivel.value)
-  );
-
-  // Carregar turmas por nível de ensino
+  // Busca automática de nome baseado na turma
   useEffect(() => {
-    const fetchTurmasPorNivel = async () => {
+    if (turmaSelecionada) {
+      const turma = turmas.find(t => t._id === turmaSelecionada);
+      if (turma) {
+        const anoAtual = new Date().getFullYear();
+        setValue("nome", `Grade ${turma.nome} - ${anoAtual}`);
+      }
+    }
+  }, [turmaSelecionada, turmas, setValue]);
+
+  // Carregar professores e disciplinas quando turma for selecionada
+  useEffect(() => {
+    const fetchProfessoresEDisciplinas = async () => {
+      if (!selectedSchool || !turmaSelecionada) return;
+
+      try {
+        // Carregar professores
+        const professoresResponse = await listProfessores({
+          idEscola: selectedSchool._id,
+          ativo: true,
+          limit: 1000,
+        });
+        const professoresData = professoresResponse.data || professoresResponse.payload;
+        if (professoresData && professoresData.docs) {
+          setProfessores(professoresData.docs);
+        }
+
+        // Carregar disciplinas
+        const disciplinasResponse = await listDisciplinas({
+          idEscola: selectedSchool._id,
+          ativa: true,
+          limit: 1000,
+        });
+        const disciplinasData = disciplinasResponse.data || disciplinasResponse.payload;
+        if (disciplinasData && disciplinasData.docs) {
+          setDisciplinas(disciplinasData.docs);
+        }
+      } catch (error) {
+        console.error("Erro ao carregar professores e disciplinas:", error);
+      }
+    };
+
+    fetchProfessoresEDisciplinas();
+  }, [selectedSchool, turmaSelecionada]);
+
+  // Carregar turmas
+  useEffect(() => {
+    const fetchTurmas = async () => {
       if (!selectedSchool) return;
 
+      setLoadingTurmas(true);
       try {
         const response = await listTurmas({
           idEscola: selectedSchool._id,
+          ativa: true,
           limit: 1000,
         });
 
         const turmasData = response.data || response.payload;
         if (turmasData && turmasData.docs) {
-          // Agrupar turmas por nível de ensino (baseado na série)
-          const contagem: Record<string, number> = {};
-
-          turmasData.docs.forEach((turma: any) => {
-            // Mapear série para nível de ensino
-            const serie = turma.serie as string;
-            let nivel: string = "";
-
-            if (serie.includes("infantil")) nivel = "infantil";
-            else if (serie.includes("1ano_fundamental") || serie.includes("2ano_fundamental") ||
-                     serie.includes("3ano_fundamental") || serie.includes("4ano_fundamental") ||
-                     serie.includes("5ano_fundamental")) nivel = "fundamental1";
-            else if (serie.includes("6ano_fundamental") || serie.includes("7ano_fundamental") ||
-                     serie.includes("8ano_fundamental") || serie.includes("9ano_fundamental")) nivel = "fundamental2";
-            else if (serie.includes("medio")) nivel = "medio";
-            else if (serie.includes("eja")) nivel = "eja";
-            else if (serie.includes("superior")) nivel = "superior";
-
-            if (nivel) {
-              contagem[nivel] = (contagem[nivel] || 0) + 1;
-            }
-          });
-
-          setTurmasPorNivel(contagem);
+          setTurmas(turmasData.docs);
         }
       } catch (error) {
         console.error("Erro ao carregar turmas:", error);
+        toast.error("Erro ao carregar turmas disponíveis");
+      } finally {
+        setLoadingTurmas(false);
       }
     };
 
-    fetchTurmasPorNivel();
+    fetchTurmas();
   }, [selectedSchool]);
 
   // Carregar estatísticas gerais
@@ -167,22 +196,46 @@ export default function CriarGradeHorariaPage() {
     fetchStats();
   }, [selectedSchool]);
 
+  // Funções para manipular horários manuais
+  const handleAddHorario = (dia: DiaSemana, horaInicio: string, horaFim: string) => {
+    setHorarioSelecionadoCelula({ dia, horaInicio, horaFim });
+    addHorarioModal.openModal();
+  };
+
+  const handleConfirmAddHorario = (disciplinaId: string, professorId: string, periodo: Periodo, observacoes?: string) => {
+    if (!horarioSelecionadoCelula) return;
+
+    const disciplina = disciplinas.find(d => d._id === disciplinaId);
+    const professor = professores.find(p => p._id === professorId);
+
+    const novoHorario: Horario = {
+      _id: `temp-${Date.now()}`, // ID temporário
+      diaSemana: horarioSelecionadoCelula.dia,
+      horaInicio: horarioSelecionadoCelula.horaInicio,
+      horaFim: horarioSelecionadoCelula.horaFim,
+      periodo,
+      disciplina: disciplina || disciplinaId,
+      professor: professor || professorId,
+      observacoes,
+    };
+
+    setHorariosManuais([...horariosManuais, novoHorario]);
+    setHorarioSelecionadoCelula(null);
+    toast.success("Horário adicionado!");
+  };
+
+  const handleRemoveHorario = (horario: Horario) => {
+    setHorariosManuais(horariosManuais.filter(h => h._id !== horario._id));
+    toast.success("Horário removido!");
+  };
+
   const onSubmit = async (data: GradeFormData) => {
     if (!selectedSchool) {
       toast.error("Nenhuma escola selecionada");
       return;
     }
 
-    const turmasDoNivel = turmasPorNivel[data.nivelEnsino] || 0;
-
     // Validações básicas
-    if (turmasDoNivel === 0) {
-      toast.error("Não há turmas cadastradas neste nível de ensino", {
-        description: "Cadastre turmas antes de gerar a grade horária.",
-      });
-      return;
-    }
-
     if (stats.professores === 0) {
       toast.error("Não há professores cadastrados", {
         description: "Cadastre professores antes de gerar a grade horária.",
@@ -207,11 +260,23 @@ export default function CriarGradeHorariaPage() {
     setIsSubmitting(true);
     try {
       const payload: any = {
-        idEscola: selectedSchool._id,
-        nivelEnsino: data.nivelEnsino,
-        anoLetivo: parseInt(data.anoLetivo),
-        semestre: parseInt(data.semestre) as Semestre,
+        turma: data.turma,
+        nome: data.nome,
+        descricao: data.descricao || undefined,
       };
+
+      // Adicionar horários criados manualmente
+      if (horariosManuais.length > 0) {
+        payload.horarios = horariosManuais.map(h => ({
+          diaSemana: h.diaSemana,
+          horaInicio: h.horaInicio,
+          horaFim: h.horaFim,
+          periodo: h.periodo,
+          disciplina: typeof h.disciplina === 'object' ? h.disciplina._id : h.disciplina,
+          professor: typeof h.professor === 'object' ? h.professor._id : h.professor,
+          observacoes: h.observacoes,
+        }));
+      }
 
       // Adicionar configurações avançadas se habilitadas
       if (showAdvanced) {
@@ -225,14 +290,14 @@ export default function CriarGradeHorariaPage() {
         };
       }
 
-      const response = await createGradeHoraria(payload);
+      const response = await createGradeHoraria(payload, selectedSchool._id);
 
       // Verificar se houve sucesso
       if (response.success || response.data || response.payload) {
-        toast.success(response.message || "Grades horárias geradas com sucesso!", {
+        toast.success(response.message || "Grade horária gerada com sucesso!", {
           description: response.estatisticas
-            ? `${response.estatisticas.aulasAlocadas || 0} aulas alocadas em ${turmasDoNivel} turma(s)`
-            : `Grades criadas para ${turmasDoNivel} turma(s)`,
+            ? `${response.estatisticas.aulasAlocadas || 0} aulas alocadas`
+            : "Grade criada com sucesso",
         });
 
         // Mostrar conflitos se houver
@@ -244,16 +309,16 @@ export default function CriarGradeHorariaPage() {
         // Redirecionar para listagem
         router.push("/planejamento/grade-horaria");
       } else {
-        throw new Error(response.message || "Erro ao criar grades");
+        throw new Error(response.message || "Erro ao criar grade");
       }
     } catch (error: any) {
       const errorMessage =
         error.response?.data?.message ||
         error.response?.data?.errors?.join(", ") ||
         error.message ||
-        "Ocorreu um erro ao gerar as grades horárias.";
+        "Ocorreu um erro ao gerar a grade horária.";
 
-      toast.error("Erro ao gerar grades", {
+      toast.error("Erro ao gerar grade", {
         description: errorMessage,
       });
 
@@ -276,7 +341,7 @@ export default function CriarGradeHorariaPage() {
     );
   }
 
-  const turmasDoNivel = nivelEnsinoSelecionado ? turmasPorNivel[nivelEnsinoSelecionado] || 0 : 0;
+  const turmaInfo = turmas.find(t => t._id === turmaSelecionada);
 
   return (
     <div className="space-y-6">
@@ -289,86 +354,76 @@ export default function CriarGradeHorariaPage() {
         </Link>
         <div>
           <h1 className="text-2xl font-semibold text-gray-800 dark:text-white/90">
-            Gerar Grades Horárias
+            Gerar Grade Horária
           </h1>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Gere automaticamente grades para todas as turmas de um nível de ensino
+            Gere automaticamente a grade horária para uma turma
           </p>
         </div>
       </div>
 
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        {/* Parâmetros de Geração */}
+        {/* Informações Básicas */}
         <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
           <h2 className="mb-4 text-lg font-medium text-gray-800 dark:text-white/90">
-            Parâmetros de Geração
+            Informações Básicas
           </h2>
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+          <div className="grid grid-cols-1 gap-6">
             <div>
               <Label>
-                Nível de Ensino <span className="text-error-500">*</span>
+                Turma <span className="text-error-500">*</span>
               </Label>
-              <Controller
-                name="nivelEnsino"
-                control={control}
-                render={({ field }) => (
-                  <select
-                    {...field}
-                    className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-700 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300"
-                  >
-                    <option value="">Selecione o nível de ensino</option>
-                    {niveisEnsinoDisponiveis.map((nivel) => (
-                      <option key={nivel.value} value={nivel.value}>
-                        {nivel.label}
-                      </option>
-                    ))}
-                  </select>
-                )}
-              />
-              {errors.nivelEnsino && (
-                <p className="mt-1 text-xs text-error-500">{errors.nivelEnsino.message}</p>
+              <select
+                {...register("turma")}
+                disabled={loadingTurmas}
+                className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-700 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300 disabled:opacity-50"
+              >
+                <option value="">
+                  {loadingTurmas ? "Carregando turmas..." : "Selecione uma turma"}
+                </option>
+                {turmas.map((turma) => (
+                  <option key={turma._id} value={turma._id}>
+                    {turma.nome} - {turma.codigo} ({turma.serie})
+                  </option>
+                ))}
+              </select>
+              {errors.turma && (
+                <p className="mt-1 text-xs text-error-500">{errors.turma.message}</p>
               )}
-              {nivelEnsinoSelecionado && (
-                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  {turmasDoNivel} turma(s) encontrada(s) neste nível
-                </p>
+              {turmaInfo && (
+                <div className="mt-2 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                  <p className="text-xs text-gray-600 dark:text-gray-400">
+                    <strong>Série:</strong> {turmaInfo.serie} •
+                    <strong> Turno:</strong> {turmaInfo.turno.charAt(0).toUpperCase() + turmaInfo.turno.slice(1)} •
+                    <strong> Alunos:</strong> {turmaInfo.quantidadeAlunos || 0}/{turmaInfo.capacidadeMaxima}
+                  </p>
+                </div>
               )}
             </div>
 
             <div>
               <Label>
-                Ano Letivo <span className="text-error-500">*</span>
+                Nome da Grade <span className="text-error-500">*</span>
               </Label>
-              <Input
-                type="number"
-                placeholder="2025"
-                {...register("anoLetivo")}
-                error={errors.anoLetivo?.message}
-                min={2020}
-                max={2030}
+              <input
+                type="text"
+                {...register("nome")}
+                placeholder="Ex: Grade Turma A - 2026"
+                className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-700 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300"
               />
+              {errors.nome && (
+                <p className="mt-1 text-xs text-error-500">{errors.nome.message}</p>
+              )}
             </div>
 
             <div>
-              <Label>
-                Semestre <span className="text-error-500">*</span>
-              </Label>
-              <Controller
-                name="semestre"
-                control={control}
-                render={({ field }) => (
-                  <select
-                    {...field}
-                    className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-700 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300"
-                  >
-                    <option value="1">1º Semestre</option>
-                    <option value="2">2º Semestre</option>
-                  </select>
-                )}
+              <Label>Descrição (opcional)</Label>
+              <textarea
+                {...register("descricao")}
+                placeholder="Descrição da grade horária"
+                rows={3}
+                className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-700 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300"
               />
-              {errors.semestre && (
-                <p className="mt-1 text-xs text-error-500">{errors.semestre.message}</p>
-              )}
             </div>
           </div>
         </div>
@@ -470,16 +525,13 @@ export default function CriarGradeHorariaPage() {
           </h2>
           <div className="space-y-2">
             <div className="flex items-center gap-2">
-              {turmasDoNivel > 0 ? (
+              {turmaSelecionada ? (
                 <span className="text-green-500">✓</span>
               ) : (
                 <span className="text-error-500">✗</span>
               )}
               <p className="text-sm text-gray-700 dark:text-gray-300">
-                {nivelEnsinoSelecionado
-                  ? `${turmasDoNivel} turma(s) no nível selecionado`
-                  : "Selecione um nível de ensino"
-                }
+                {turmaSelecionada ? "Turma selecionada" : "Selecione uma turma"}
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -515,6 +567,56 @@ export default function CriarGradeHorariaPage() {
           </div>
         </div>
 
+        {/* Grade Horária - Preenchimento Manual (Opcional) */}
+        {turmaSelecionada && (
+          <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-lg font-medium text-gray-800 dark:text-white/90">
+                  Grade Horária (Opcional)
+                </h2>
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                  Preencha manualmente alguns horários ou deixe vazio para gerar tudo automaticamente
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="text-right">
+                  <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {horariosManuais.length} horário(s) adicionado(s)
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Informativo */}
+            <div className="mb-4 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-3">
+              <div className="flex items-start gap-2">
+                <svg className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                </svg>
+                <div className="flex-1">
+                  <p className="text-xs font-medium text-blue-700 dark:text-blue-300">
+                    <strong>Criação Híbrida:</strong>
+                  </p>
+                  <ul className="mt-1 space-y-0.5 text-xs text-blue-600 dark:text-blue-400">
+                    <li>• Clique em uma célula vazia para adicionar um horário manualmente</li>
+                    <li>• Clique em um horário já adicionado para removê-lo</li>
+                    <li>• Ao criar, você pode gerar automaticamente os horários restantes</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            {/* Tabela da Grade Editável */}
+            <GradeHorariaEditor
+              horarios={horariosManuais}
+              onAddHorario={handleAddHorario}
+              onRemoveHorario={handleRemoveHorario}
+              diasLetivos={selectedSchool?.configuracoes?.diasLetivos}
+            />
+          </div>
+        )}
+
         {/* Form Actions */}
         <div className="flex justify-end gap-3 rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
           <Button
@@ -525,11 +627,25 @@ export default function CriarGradeHorariaPage() {
           >
             Cancelar
           </Button>
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? "Gerando Grades..." : "Gerar Grades Horárias"}
+          <Button type="submit" disabled={isSubmitting || !turmaSelecionada}>
+            {isSubmitting ? "Gerando Grade..." : "Gerar Grade Horária"}
           </Button>
         </div>
       </form>
+
+      {/* Modal de Adicionar Horário - Fora do form */}
+      {horarioSelecionadoCelula && (
+        <AddHorarioModal
+          isOpen={addHorarioModal.isOpen}
+          onClose={addHorarioModal.closeModal}
+          onAdd={handleConfirmAddHorario}
+          professores={professores}
+          disciplinas={disciplinas}
+          diaSemana={horarioSelecionadoCelula.dia}
+          horaInicio={horarioSelecionadoCelula.horaInicio}
+          horaFim={horarioSelecionadoCelula.horaFim}
+        />
+      )}
     </div>
   );
 }

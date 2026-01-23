@@ -54,6 +54,7 @@ export interface Escola {
   _id: string;
   nome: string;
   tipoEscola: TipoEscola;
+  logoPath?: string;
   nivelEnsino?: NivelEnsino[];
   inep?: string; // 8 dígitos
   cnpj?: string; // 14 dígitos
@@ -162,11 +163,14 @@ export interface CreateEscolaData {
 }
 
 export const createEscola = async (
-  data: CreateEscolaData
+  data: FormData
 ): Promise<ApiResponse<Escola>> => {
   const response = await apiClient.post<ApiResponse<Escola>>(
     "/api/escolas",
-    data
+    data,
+    {
+      headers: { "Content-Type": "multipart/form-data" },
+    }
   );
   return response.data;
 };
@@ -204,11 +208,14 @@ export interface UpdateEscolaData {
 
 export const updateEscola = async (
   id: string,
-  data: UpdateEscolaData
+  data: FormData
 ): Promise<ApiResponse<Escola>> => {
   const response = await apiClient.put<ApiResponse<Escola>>(
     `/api/escolas/${id}`,
-    data
+    data,
+    {
+      headers: { "Content-Type": "multipart/form-data" },
+    }
   );
   return response.data;
 };

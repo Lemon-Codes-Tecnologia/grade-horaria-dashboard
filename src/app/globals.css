@@ -190,6 +190,9 @@
   body {
     @apply relative font-normal font-outfit z-1 bg-gray-50;
   }
+  select:not([multiple]):not([size]) {
+    padding-right: 2.75rem;
+  }
 }
 
 @utility menu-item {

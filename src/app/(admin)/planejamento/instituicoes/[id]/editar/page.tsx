@@ -74,6 +74,9 @@ export default function EditarInstituicaoPage() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreviewUrl, setLogoPreviewUrl] = useState<string | null>(null);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [cnpj, setCnpj] = useState("");
   const [inep, setInep] = useState("");
   const [selectedNiveis, setSelectedNiveis] = useState<NivelEnsino[]>([]);
@@ -100,6 +103,18 @@ export default function EditarInstituicaoPage() {
 
   // Watch UF field changes
   const ufValue = watch("uf");
+
+  useEffect(() => {
+    if (!logoFile) {
+      setLogoPreviewUrl(null);
+      return;
+    }
+
+    const objectUrl = URL.createObjectURL(logoFile);
+    setLogoPreviewUrl(objectUrl);
+
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [logoFile]);
 
   // Load escola data
   useEffect(() => {
@@ -147,6 +162,19 @@ export default function EditarInstituicaoPage() {
             ? Object.keys(escola.configuracoes.horariosDisponiveis) as Turno[]
             : [];
           setSelectedTurnos(turnosDisponiveis);
+
+          if (escola.logoPath) {
+            const resolvedLogoUrl = escola.logoPath.startsWith("http")
+              ? (() => {
+                  try {
+                    return new URL(escola.logoPath as string).pathname;
+                  } catch {
+                    return escola.logoPath as string;
+                  }
+                })()
+              : escola.logoPath;
+            setLogoUrl(resolvedLogoUrl);
+          }
 
           console.log("Estados setados:");
           console.log("- selectedNiveis:", escola.nivelEnsino || []);
@@ -243,9 +271,9 @@ export default function EditarInstituicaoPage() {
       } else {
         // Adiciona o turno com horários padrão
         const horariosDefault = {
-          manha: { inicio: "07:00", fim: "12:00", duracaoAula: 50, intervalo: 15, inicioIntervalo: "09:30" },
-          tarde: { inicio: "13:00", fim: "18:00", duracaoAula: 50, intervalo: 15, inicioIntervalo: "15:30" },
-          noite: { inicio: "19:00", fim: "23:00", duracaoAula: 45, intervalo: 15, inicioIntervalo: "21:00" },
+          manha: { inicio: "07:00", fim: "12:00", duracaoAula: 50, intervalo: 15 },
+          tarde: { inicio: "13:00", fim: "18:00", duracaoAula: 50, intervalo: 15 },
+          noite: { inicio: "19:00", fim: "23:00", duracaoAula: 45, intervalo: 15 },
         };
         setHorariosDisponiveis({
           ...horariosDisponiveis,
@@ -326,7 +354,34 @@ export default function EditarInstituicaoPage() {
       };
 
       // A API valida automaticamente se o usuário tem permissão para editar
-      const response = await updateEscola(id, updateData);
+      const formData = new FormData();
+      if (logoFile) {
+        formData.append("logoPath", logoFile);
+      }
+
+      if (updateData.nome) {
+        formData.append("nome", updateData.nome);
+      }
+      if (updateData.tipoEscola) {
+        formData.append("tipoEscola", updateData.tipoEscola);
+      }
+
+      if (updateData.endereco) {
+        formData.append("endereco", JSON.stringify(updateData.endereco));
+      }
+      if (updateData.nivelEnsino?.length) {
+        formData.append("nivelEnsino", JSON.stringify(updateData.nivelEnsino));
+      }
+      if (updateData.configuracoes) {
+        formData.append("configuracoes", JSON.stringify(updateData.configuracoes));
+      }
+
+      const contatoHasValue = Object.values(updateData.contato || {}).some(Boolean);
+      if (contatoHasValue) {
+        formData.append("contato", JSON.stringify(updateData.contato));
+      }
+
+      const response = await updateEscola(id, formData);
 
       // Mostra toast de sucesso
       const escolaData = response.data || response.payload;
@@ -396,6 +451,42 @@ export default function EditarInstituicaoPage() {
                   {...register("nome")}
                   error={errors.nome?.message}
                 />
+              </div>
+
+              <div className="md:col-span-2">
+                <Label htmlFor="logoPath">Logo da Escola</Label>
+                <input
+                  id="logoPath"
+                  name="logoPath"
+                  type="file"
+                  accept="image/*"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0] || null;
+                    setLogoFile(file);
+                  }}
+                  className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm text-gray-700 file:mr-4 file:rounded-md file:border-0 file:bg-gray-100 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-gray-700 hover:file:bg-gray-200 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300 dark:file:bg-gray-800 dark:file:text-gray-200"
+                />
+                {logoPreviewUrl ? (
+                  <div className="mt-3 flex items-center gap-3">
+                    <img
+                      src={logoPreviewUrl}
+                      alt="Prévia do novo logo"
+                      className="h-12 w-12 rounded-lg object-cover"
+                    />
+                    <span className="text-xs text-gray-500">
+                      Prévia do novo logo
+                    </span>
+                  </div>
+                ) : logoUrl ? (
+                  <div className="mt-3 flex items-center gap-3">
+                    <img
+                      src={logoUrl}
+                      alt="Logo atual da escola"
+                      className="h-[108px] w-[108px] rounded-lg object-contain"
+                    />
+                    <span className="text-xs text-gray-500">Logo atual</span>
+                  </div>
+                ) : null}
               </div>
 
               <div>
@@ -521,7 +612,7 @@ export default function EditarInstituicaoPage() {
                     <h3 className="mb-3 text-sm font-medium text-gray-800 dark:text-white/90">
                       {turnoOptions.find((t) => t.value === turno)?.label}
                     </h3>
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
                       <div>
                         <Label>Início</Label>
                         <Input
@@ -558,14 +649,6 @@ export default function EditarInstituicaoPage() {
                           onChange={(e) =>
                             updateHorario(turno, "intervalo", parseInt(e.target.value) || 0)
                           }
-                        />
-                      </div>
-                      <div>
-                        <Label>Início do Intervalo</Label>
-                        <Input
-                          type="time"
-                          value={horariosDisponiveis?.[turno]?.inicioIntervalo || ""}
-                          onChange={(e) => updateHorario(turno, "inicioIntervalo", e.target.value)}
                         />
                       </div>
                     </div>

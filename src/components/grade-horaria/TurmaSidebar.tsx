@@ -160,14 +160,14 @@ const TurmaSidebar: React.FC<TurmaSidebarProps> = ({
               )}
             </div>
 
-            {/* Sala */}
-            {horarioSelecionado.sala && (
+            {/* Observações */}
+            {horarioSelecionado.observacoes && (
               <div>
                 <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">
-                  Sala
+                  Observações
                 </p>
                 <p className="text-sm font-medium text-gray-800 dark:text-white/90">
-                  {horarioSelecionado.sala}
+                  {horarioSelecionado.observacoes}
                 </p>
               </div>
             )}
@@ -265,17 +265,6 @@ const TurmaSidebar: React.FC<TurmaSidebarProps> = ({
         </div>
       </div>
 
-      {/* Mural da Turma (placeholder para futura implementação) */}
-      <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
-        <h3 className="text-lg font-medium text-gray-800 dark:text-white/90 mb-4">
-          Mural da Turma
-        </h3>
-        <div className="text-center py-6">
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            Nenhum aviso ou observação cadastrada
-          </p>
-        </div>
-      </div>
     </div>
   );
 };

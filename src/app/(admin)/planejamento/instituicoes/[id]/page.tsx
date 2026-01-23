@@ -131,6 +131,18 @@ export default function DetalhesInstituicaoPage() {
     return null;
   }
 
+  const logoUrl = escola.logoPath
+    ? escola.logoPath.startsWith("http")
+      ? (() => {
+          try {
+            return new URL(escola.logoPath as string).pathname;
+          } catch {
+            return escola.logoPath as string;
+          }
+        })()
+      : escola.logoPath
+    : null;
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -154,6 +166,14 @@ export default function DetalhesInstituicaoPage() {
           </Button>
         </Link>
       </div>
+
+      {logoUrl && (
+        <img
+          src={logoUrl}
+          alt={`Logo da escola ${escola.nome}`}
+          className="mx-auto block h-[156px] w-[156px] rounded-xl object-contain"
+        />
+      )}
 
       {/* Informações da Escola */}
       <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">

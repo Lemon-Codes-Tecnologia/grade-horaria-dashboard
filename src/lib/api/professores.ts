@@ -93,11 +93,10 @@ export const listProfessores = async (
 };
 
 /**
- * POST /api/professores
+ * POST /api/professores?idEscola=xxx
  * Cria novo professor
  */
 export interface CreateProfessorData {
-  idEscola: string;
   nome: string;
   email: string;
   matricula: string;
@@ -110,22 +109,27 @@ export interface CreateProfessorData {
 }
 
 export const createProfessor = async (
-  data: CreateProfessorData
+  data: CreateProfessorData,
+  idEscola: string
 ): Promise<ApiResponse<Professor>> => {
+  const params = { idEscola };
   const response = await apiClient.post<ApiResponse<Professor>>(
     "/api/professores",
-    data
+    data,
+    { params }
   );
   return response.data;
 };
 
 /**
- * GET /api/professores/:id
+ * GET /api/professores/:id?idEscola=xxx
  * Busca professor por ID
  */
-export const getProfessor = async (id: string): Promise<ApiResponse<Professor>> => {
+export const getProfessor = async (id: string, idEscola?: string): Promise<ApiResponse<Professor>> => {
+  const params = idEscola ? { idEscola } : undefined;
   const response = await apiClient.get<ApiResponse<Professor>>(
-    `/api/professores/${id}`
+    `/api/professores/${id}`,
+    { params }
   );
   return response.data;
 };
@@ -147,35 +151,44 @@ export interface UpdateProfessorData {
 
 export const updateProfessor = async (
   id: string,
-  data: UpdateProfessorData
+  data: UpdateProfessorData,
+  idEscola?: string
 ): Promise<ApiResponse<Professor>> => {
+  const params = idEscola ? { idEscola } : undefined;
   const response = await apiClient.put<ApiResponse<Professor>>(
     `/api/professores/${id}`,
-    data
+    data,
+    { params }
   );
   return response.data;
 };
 
 /**
- * DELETE /api/professores/:id
+ * DELETE /api/professores/:id?idEscola=xxx
  * Exclui professor
  */
-export const deleteProfessor = async (id: string): Promise<ApiResponse<void>> => {
+export const deleteProfessor = async (id: string, idEscola?: string): Promise<ApiResponse<void>> => {
+  const params = idEscola ? { idEscola } : undefined;
   const response = await apiClient.delete<ApiResponse<void>>(
-    `/api/professores/${id}`
+    `/api/professores/${id}`,
+    { params }
   );
   return response.data;
 };
 
 /**
- * PATCH /api/professores/:id/toggle-active
+ * PATCH /api/professores/:id/toggle-active?idEscola=xxx
  * Ativa/Desativa professor
  */
 export const toggleProfessorActive = async (
-  id: string
+  id: string,
+  idEscola?: string
 ): Promise<ApiResponse<Professor>> => {
+  const params = idEscola ? { idEscola } : undefined;
   const response = await apiClient.patch<ApiResponse<Professor>>(
-    `/api/professores/${id}/toggle-active`
+    `/api/professores/${id}/toggle-active`,
+    undefined,
+    { params }
   );
   return response.data;
 };
@@ -190,11 +203,14 @@ export interface UpdateDisponibilidadeData {
 
 export const updateDisponibilidade = async (
   id: string,
-  data: UpdateDisponibilidadeData
+  data: UpdateDisponibilidadeData,
+  idEscola?: string
 ): Promise<ApiResponse<Professor>> => {
+  const params = idEscola ? { idEscola } : undefined;
   const response = await apiClient.patch<ApiResponse<Professor>>(
     `/api/professores/${id}/disponibilidade`,
-    data
+    data,
+    { params }
   );
   return response.data;
 };

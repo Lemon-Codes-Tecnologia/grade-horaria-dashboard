@@ -52,9 +52,11 @@ export default function CriarProfessorPage() {
   const [selectedNiveisEnsino, setSelectedNiveisEnsino] = useState<NivelEnsino[]>([]);
 
   // Configuração da grade de horários
-  const [quantidadeAulasPorDia, setQuantidadeAulasPorDia] = useState<number>(6);
+  const [quantidadeAulasPorDia, setQuantidadeAulasPorDia] = useState<number | "">("");
   const [diasComAula, setDiasComAula] = useState<string[]>(['segunda', 'terca', 'quarta', 'quinta', 'sexta']);
-  const [quantidadeMinimaAulasPorDia, setQuantidadeMinimaAulasPorDia] = useState<number>(2);
+  const [quantidadeMinimaAulasPorDia, setQuantidadeMinimaAulasPorDia] = useState<number | "">("");
+
+  const aulasPorDia = quantidadeAulasPorDia ? Number(quantidadeAulasPorDia) : 6;
 
   // Grade de disponibilidade por nível de ensino
   // Estrutura: { nivelEnsino: { dia: [aula1, aula2, aula3...] } }
@@ -152,7 +154,7 @@ export default function CriarProfessorPage() {
         // Adiciona o nível com grade vazia
         const gradeVazia: Record<string, boolean[]> = {};
         diasComAula.forEach((dia) => {
-          gradeVazia[dia] = Array(quantidadeAulasPorDia).fill(false);
+          gradeVazia[dia] = Array(aulasPorDia).fill(false);
         });
         setDisponibilidadePorNivel((prevDisp) => ({
           ...prevDisp,
@@ -202,7 +204,7 @@ export default function CriarProfessorPage() {
         // Adiciona o dia em todas as grades com horários desmarcados
         const newDisp = { ...disponibilidadePorNivel };
         Object.keys(newDisp).forEach((nivel) => {
-          newDisp[nivel as NivelEnsino][dia] = Array(quantidadeAulasPorDia).fill(false);
+          newDisp[nivel as NivelEnsino][dia] = Array(aulasPorDia).fill(false);
         });
         setDisponibilidadePorNivel(newDisp);
         return [...prev, dia];
@@ -250,6 +252,36 @@ export default function CriarProfessorPage() {
     });
   };
 
+  const handleSelecionarTudo = (nivel: NivelEnsino) => {
+    setDisponibilidadePorNivel((prev) => {
+      const novaDisponibilidade = { ...prev };
+
+      diasComAula.forEach((dia) => {
+        Object.keys(novaDisponibilidade).forEach((nivelKey) => {
+          const nivelAtual = nivelKey as NivelEnsino;
+          const horariosAtuais = [
+            ...(novaDisponibilidade[nivelAtual]?.[dia] || []),
+          ];
+          if (horariosAtuais.length < aulasPorDia) {
+            horariosAtuais.push(
+              ...Array(aulasPorDia - horariosAtuais.length).fill(false)
+            );
+          }
+          for (let i = 0; i < aulasPorDia; i += 1) {
+            horariosAtuais[i] = nivelAtual === nivel;
+          }
+
+          novaDisponibilidade[nivelAtual] = {
+            ...novaDisponibilidade[nivelAtual],
+            [dia]: horariosAtuais,
+          };
+        });
+      });
+
+      return novaDisponibilidade;
+    });
+  };
+
   // Verifica se um horário está ocupado em outro nível
   const isHorarioOcupado = (nivelAtual: NivelEnsino, dia: string, aulaIndex: number): boolean => {
     return Object.keys(disponibilidadePorNivel).some((nivel) => {
@@ -267,17 +299,17 @@ export default function CriarProfessorPage() {
       diasComAula.forEach((dia) => {
         const horariosAtuais = newDisp[nivelKey]?.[dia] || [];
         // Ajusta o array para o novo tamanho
-        if (horariosAtuais.length < quantidadeAulasPorDia) {
+        if (horariosAtuais.length < aulasPorDia) {
           // Adiciona false para as novas aulas
           newDisp[nivelKey] = {
             ...newDisp[nivelKey],
-            [dia]: [...horariosAtuais, ...Array(quantidadeAulasPorDia - horariosAtuais.length).fill(false)],
+            [dia]: [...horariosAtuais, ...Array(aulasPorDia - horariosAtuais.length).fill(false)],
           };
         } else {
           // Trunca se diminuiu
           newDisp[nivelKey] = {
             ...newDisp[nivelKey],
-            [dia]: horariosAtuais.slice(0, quantidadeAulasPorDia),
+            [dia]: horariosAtuais.slice(0, aulasPorDia),
           };
         }
       });
@@ -285,7 +317,7 @@ export default function CriarProfessorPage() {
 
     setDisponibilidadePorNivel(newDisp);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [quantidadeAulasPorDia]);
+  }, [quantidadeAulasPorDia, aulasPorDia]);
 
   const formatCPF = (value: string) => {
     const numbers = value.replace(/\D/g, "");
@@ -327,6 +359,18 @@ export default function CriarProfessorPage() {
 
     setIsSubmitting(true);
     try {
+      const maxAulasPorDia =
+        typeof quantidadeAulasPorDia === "number" ? quantidadeAulasPorDia : undefined;
+      const minAulasPorDia =
+        typeof quantidadeMinimaAulasPorDia === "number" ? quantidadeMinimaAulasPorDia : undefined;
+      const preferenciasPayload = {
+        maxAulasPorDia,
+        minAulasPorDia,
+        diasSemanaAula: diasComAula.length > 0 ? diasComAula : undefined,
+      };
+      const hasPreferencias = Object.values(preferenciasPayload).some(
+        (value) => value !== undefined
+      );
       const payload = {
         idEscola: selectedSchool._id,
         nome: data.nome,
@@ -341,6 +385,7 @@ export default function CriarProfessorPage() {
         nivelEnsino: selectedNiveisEnsino.length > 0 ? selectedNiveisEnsino : undefined,
         disciplinas: selectedDisciplinas.length > 0 ? selectedDisciplinas : undefined,
         disponibilidade: Object.keys(disponibilidadePorNivel).length > 0 ? disponibilidadePorNivel : undefined,
+        preferencias: hasPreferencias ? preferenciasPayload : undefined,
       };
 
       console.log("📤 Enviando payload para criar professor:", payload);
@@ -639,7 +684,15 @@ export default function CriarProfessorPage() {
                     min={1}
                     max={12}
                     value={quantidadeAulasPorDia}
-                    onChange={(e) => setQuantidadeAulasPorDia(parseInt(e.target.value) || 6)}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (!value) {
+                        setQuantidadeAulasPorDia("");
+                        return;
+                      }
+                      const parsed = parseInt(value, 10);
+                      setQuantidadeAulasPorDia(Number.isNaN(parsed) ? "" : parsed);
+                    }}
                     placeholder="6"
                   />
                   <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
@@ -652,9 +705,17 @@ export default function CriarProfessorPage() {
                   <Input
                     type="number"
                     min={1}
-                    max={quantidadeAulasPorDia}
+                    max={aulasPorDia}
                     value={quantidadeMinimaAulasPorDia}
-                    onChange={(e) => setQuantidadeMinimaAulasPorDia(parseInt(e.target.value) || 2)}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (!value) {
+                        setQuantidadeMinimaAulasPorDia("");
+                        return;
+                      }
+                      const parsed = parseInt(value, 10);
+                      setQuantidadeMinimaAulasPorDia(Number.isNaN(parsed) ? "" : parsed);
+                    }}
                     placeholder="2"
                   />
                   <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
@@ -731,9 +792,18 @@ export default function CriarProfessorPage() {
 
                   return (
                     <div key={nivel} className="rounded-lg border border-gray-200 p-4 dark:border-gray-800">
-                      <h3 className="mb-4 text-base font-medium text-gray-800 dark:text-white/90">
-                        {nivelLabel}
-                      </h3>
+                      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                        <h3 className="text-base font-medium text-gray-800 dark:text-white/90">
+                          {nivelLabel}
+                        </h3>
+                        <button
+                          type="button"
+                          onClick={() => handleSelecionarTudo(nivel)}
+                          className="rounded-lg border border-gray-200 px-3 py-1 text-xs font-medium text-gray-600 hover:bg-gray-50 dark:border-gray-800 dark:text-gray-300 dark:hover:bg-gray-900"
+                        >
+                          Selecionar tudo
+                        </button>
+                      </div>
                       <div className="overflow-x-auto">
                         <table className="w-full border-collapse">
                           <thead>
@@ -754,7 +824,7 @@ export default function CriarProfessorPage() {
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                            {Array.from({ length: quantidadeAulasPorDia }, (_, index) => (
+                            {Array.from({ length: aulasPorDia }, (_, index) => (
                               <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-800/50">
                                 <td className="sticky left-0 bg-white py-2 px-3 text-xs font-medium text-gray-700 dark:bg-gray-900 dark:text-gray-300">
                                   {index + 1}º

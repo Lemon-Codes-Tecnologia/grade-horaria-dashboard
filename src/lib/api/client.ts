@@ -25,8 +25,19 @@ apiClient.interceptors.request.use(
         // Debug para rotas privadas
         console.log('🔒 ===== ROTA PRIVADA =====');
         console.log(`📍 URL: ${config.baseURL}${config.url}`);
+        console.log(`🔧 Método: ${config.method?.toUpperCase()}`);
         console.log(`👤 Session Token:`, sessionToken ? sessionToken.substring(0, 20) + '...' : '❌ NÃO ENCONTRADO');
         console.log(`📋 Todos os cookies:`, document.cookie);
+
+        // Log do body da requisição
+        if (config.data) {
+          console.log(`📤 Request Body:`, config.data);
+        }
+
+        // Log dos query params
+        if (config.params) {
+          console.log(`🔗 Query Params:`, config.params);
+        }
 
         if (sessionToken) {
           // Usa session token no Authorization para rotas privadas
@@ -44,7 +55,19 @@ apiClient.interceptors.request.use(
         // Debug para rotas públicas
         console.log('🌐 ===== ROTA PÚBLICA =====');
         console.log(`📍 URL: ${config.baseURL}${config.url}`);
+        console.log(`🔧 Método: ${config.method?.toUpperCase()}`);
         console.log(`🔑 APP Token:`, appToken.substring(0, 20) + '...');
+
+        // Log do body da requisição
+        if (config.data) {
+          console.log(`📤 Request Body:`, config.data);
+        }
+
+        // Log dos query params
+        if (config.params) {
+          console.log(`🔗 Query Params:`, config.params);
+        }
+
         console.log('🌐 ==========================');
       }
 
@@ -62,20 +85,45 @@ apiClient.interceptors.request.use(
 // Response interceptor - Handle errors globally
 apiClient.interceptors.response.use(
   (response) => {
-    console.log(`✅ ${response.status} ${response.config.method?.toUpperCase()} ${response.config.url}`);
+    console.log('✅ ===== RESPOSTA SUCESSO =====');
+    console.log(`📍 URL: ${response.config.url}`);
+    console.log(`🔧 Método: ${response.config.method?.toUpperCase()}`);
+    console.log(`🔢 Status: ${response.status}`);
+    console.log(`📥 Response Body:`, response.data);
+    console.log('✅ ==============================');
     return response;
   },
   (error) => {
     const status = error.response?.status;
     const message = error.response?.data?.message;
     const url = error.config?.url;
+    const method = error.config?.method?.toUpperCase();
 
     console.error('❌ ===== ERRO NA REQUISIÇÃO =====');
     console.error(`📍 URL: ${url}`);
-    console.error(`🔢 Status: ${status || 'ERRO'}`);
+    console.error(`🔧 Método: ${method}`);
+    console.error(`🔢 Status: ${status || 'ERRO DE REDE/TIMEOUT'}`);
     console.error(`💬 Mensagem: ${message || error.message}`);
-    console.error(`📦 Response completa:`, error.response?.data);
+    console.error(`📦 Response Body:`, error.response?.data);
     console.error(`🔑 Headers enviados:`, error.config?.headers);
+
+    // Log do body da requisição que falhou
+    if (error.config?.data) {
+      try {
+        const requestBody = typeof error.config.data === 'string'
+          ? JSON.parse(error.config.data)
+          : error.config.data;
+        console.error(`📤 Request Body (que falhou):`, requestBody);
+      } catch (e) {
+        console.error(`📤 Request Body (que falhou):`, error.config.data);
+      }
+    }
+
+    // Log dos query params que falharam
+    if (error.config?.params) {
+      console.error(`🔗 Query Params (que falharam):`, error.config.params);
+    }
+
     console.error('❌ =================================');
 
     // Handle 401 Unauthorized - session token expired or invalid

@@ -74,6 +74,8 @@ const turnoOptions: { value: Turno; label: string }[] = [
 export default function CriarInstituicaoPage() {
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreviewUrl, setLogoPreviewUrl] = useState<string | null>(null);
   const [selectedNiveis, setSelectedNiveis] = useState<NivelEnsino[]>([]);
   const [selectedDias, setSelectedDias] = useState<DiaSemana[]>([]);
   const [selectedTurnos, setSelectedTurnos] = useState<Turno[]>([]);
@@ -97,6 +99,18 @@ export default function CriarInstituicaoPage() {
 
   // Watch UF field changes
   const ufValue = watch("uf");
+
+  useEffect(() => {
+    if (!logoFile) {
+      setLogoPreviewUrl(null);
+      return;
+    }
+
+    const objectUrl = URL.createObjectURL(logoFile);
+    setLogoPreviewUrl(objectUrl);
+
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [logoFile]);
 
   // Carregar UFs quando o componente montar
   useEffect(() => {
@@ -170,9 +184,9 @@ export default function CriarInstituicaoPage() {
       } else {
         // Adiciona o turno com horários padrão
         const horariosDefault = {
-          manha: { inicio: "07:00", fim: "12:00", duracaoAula: 50, intervalo: 15, inicioIntervalo: "09:30" },
-          tarde: { inicio: "13:00", fim: "18:00", duracaoAula: 50, intervalo: 15, inicioIntervalo: "15:30" },
-          noite: { inicio: "19:00", fim: "23:00", duracaoAula: 45, intervalo: 15, inicioIntervalo: "21:00" },
+          manha: { inicio: "07:00", fim: "12:00", duracaoAula: 50, intervalo: 15 },
+          tarde: { inicio: "13:00", fim: "18:00", duracaoAula: 50, intervalo: 15 },
+          noite: { inicio: "19:00", fim: "23:00", duracaoAula: 45, intervalo: 15 },
         };
         setHorariosDisponiveis({
           ...horariosDisponiveis,
@@ -191,6 +205,50 @@ export default function CriarInstituicaoPage() {
         [field]: value,
       },
     }));
+  };
+
+  const validateHorariosDisponiveis = () => {
+    if (selectedTurnos.length === 0) {
+      return {
+        valid: false,
+        message: "Selecione pelo menos um turno e preencha os horários disponíveis.",
+      };
+    }
+
+    const fieldLabels: Record<string, string> = {
+      inicio: "Início",
+      fim: "Fim",
+      duracaoAula: "Duração da Aula",
+      intervalo: "Intervalo",
+    };
+
+    for (const turno of selectedTurnos) {
+      const horario = horariosDisponiveis?.[turno];
+      const turnoLabel = turnoOptions.find((option) => option.value === turno)?.label || turno;
+
+      if (!horario) {
+        return { valid: false, message: `Preencha os horários do turno ${turnoLabel}.` };
+      }
+
+      const missingFields = Object.keys(fieldLabels).filter((field) => {
+        if (field === "duracaoAula" || field === "intervalo") {
+          const value = Number(horario[field]);
+          return !Number.isFinite(value) || value <= 0;
+        }
+
+        return !String(horario[field] || "").trim();
+      });
+
+      if (missingFields.length > 0) {
+        const missingLabels = missingFields.map((field) => fieldLabels[field]).join(", ");
+        return {
+          valid: false,
+          message: `Preencha ${missingLabels} no turno ${turnoLabel}.`,
+        };
+      }
+    }
+
+    return { valid: true };
   };
 
   // Função para formatar CNPJ: XX.XXX.XXX/XXXX-XX
@@ -216,6 +274,14 @@ export default function CriarInstituicaoPage() {
   };
 
   const onSubmit = async (data: InstituicaoFormData) => {
+    const horariosValidation = validateHorariosDisponiveis();
+    if (!horariosValidation.valid) {
+      toast.error("Horários disponíveis obrigatórios", {
+        description: horariosValidation.message,
+      });
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       // Filtra horariosDisponiveis para incluir apenas os turnos selecionados
@@ -255,7 +321,41 @@ export default function CriarInstituicaoPage() {
         },
       };
 
-      const response = await createEscola(payload);
+      const formData = new FormData();
+      if (logoFile) {
+        formData.append("logoPath", logoFile);
+      }
+      formData.append("nome", payload.nome);
+      formData.append("tipoEscola", payload.tipoEscola);
+      formData.append("endereco", JSON.stringify(payload.endereco));
+
+      if (payload.nivelEnsino?.length) {
+        formData.append("nivelEnsino", JSON.stringify(payload.nivelEnsino));
+      }
+      if (payload.diasLetivos?.length) {
+        formData.append("diasLetivos", JSON.stringify(payload.diasLetivos));
+      }
+      if (payload.turnosDisponiveis?.length) {
+        formData.append("turnosDisponiveis", JSON.stringify(payload.turnosDisponiveis));
+      }
+      if (payload.horariosDisponiveis) {
+        formData.append("horariosDisponiveis", JSON.stringify(payload.horariosDisponiveis));
+      }
+
+      if (payload.inep) {
+        formData.append("inep", payload.inep);
+      }
+      if (payload.cnpj) {
+        formData.append("cnpj", payload.cnpj);
+      }
+
+      const contatoHasValue = Object.values(payload.contato || {}).some(Boolean);
+      if (contatoHasValue) {
+        formData.append("contato", JSON.stringify(payload.contato));
+      }
+      formData.append("configuracoes", JSON.stringify(payload.configuracoes));
+
+      const response = await createEscola(formData);
 
       // Mostra toast de sucesso
       toast.success(response.message || "Escola criada com sucesso!", {
@@ -318,6 +418,31 @@ export default function CriarInstituicaoPage() {
                   {...register("nome")}
                   error={errors.nome?.message}
                 />
+              </div>
+
+              <div className="md:col-span-2">
+                <Label htmlFor="logoPath">Logo da Escola</Label>
+                <input
+                  id="logoPath"
+                  name="logoPath"
+                  type="file"
+                  accept="image/*"
+                  onChange={(event) => {
+                    const file = event.target.files?.[0] || null;
+                    setLogoFile(file);
+                  }}
+                  className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm text-gray-700 file:mr-4 file:rounded-md file:border-0 file:bg-gray-100 file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-gray-700 hover:file:bg-gray-200 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300 dark:file:bg-gray-800 dark:file:text-gray-200"
+                />
+                {logoPreviewUrl && (
+                  <div className="mt-3 flex items-center gap-3">
+                    <img
+                      src={logoPreviewUrl}
+                      alt="Prévia do logo da escola"
+                      className="h-12 w-12 rounded-lg object-cover"
+                    />
+                    <span className="text-xs text-gray-500">Prévia do logo</span>
+                  </div>
+                )}
               </div>
 
               <div>
@@ -464,7 +589,7 @@ export default function CriarInstituicaoPage() {
                     <h3 className="mb-3 text-sm font-medium text-gray-800 dark:text-white/90">
                       {turnoOptions.find((t) => t.value === turno)?.label}
                     </h3>
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
                       <div>
                         <Label>Início</Label>
                         <Input
@@ -501,14 +626,6 @@ export default function CriarInstituicaoPage() {
                           onChange={(e) =>
                             updateHorario(turno, "intervalo", parseInt(e.target.value) || 0)
                           }
-                        />
-                      </div>
-                      <div>
-                        <Label>Início do Intervalo</Label>
-                        <Input
-                          type="time"
-                          value={horariosDisponiveis?.[turno]?.inicioIntervalo || ""}
-                          onChange={(e) => updateHorario(turno, "inicioIntervalo", e.target.value)}
                         />
                       </div>
                     </div>
