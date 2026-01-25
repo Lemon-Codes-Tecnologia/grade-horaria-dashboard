@@ -1,12 +1,14 @@
 import type { NextConfig } from "next";
 
+type RemotePattern = NonNullable<NextConfig["images"]>["remotePatterns"][number];
+
 const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-const apiPattern = apiUrl
+const apiPattern: RemotePattern | null = apiUrl
   ? (() => {
       try {
         const url = new URL(apiUrl);
         return {
-          protocol: url.protocol.replace(":", ""),
+          protocol: url.protocol.replace(":", "") as "http" | "https",
           hostname: url.hostname,
           port: url.port || undefined,
           pathname: "/public/**",
