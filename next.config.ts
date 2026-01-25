@@ -33,9 +33,12 @@ const remotePatterns: RemotePattern[] = [
     hostname: "localhost",
     port: "4000",
     pathname: "/public/**",
-  },
-  ...(apiPattern ? [apiPattern] : []),
+  } as RemotePattern,
 ];
+
+if (apiPattern) {
+  remotePatterns.push(apiPattern);
+}
 
 const nextConfig: NextConfig = {
   /* config options here */
