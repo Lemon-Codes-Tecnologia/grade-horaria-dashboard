@@ -18,17 +18,19 @@ const apiPattern: RemotePattern | null = apiUrl
     })()
   : null;
 
+const remotePatterns: RemotePattern[] = [
+  {
+    protocol: "http",
+    hostname: "localhost",
+    port: "4000",
+    pathname: "/public/**",
+  },
+  ...(apiPattern ? [apiPattern] : []),
+];
+
 const nextConfig: NextConfig = {
   images: {
-    remotePatterns: [
-      {
-        protocol: "http",
-        hostname: "localhost",
-        port: "4000",
-        pathname: "/**",
-      },
-      ...(apiPattern ? [apiPattern] : []),
-    ],
+    remotePatterns,
   },
   async rewrites() {
     if (!apiUrl) {
