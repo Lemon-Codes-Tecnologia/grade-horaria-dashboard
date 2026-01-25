@@ -12,13 +12,14 @@ interface AppTokenResponse {
   token: string;
 }
 
+// @ts-ignore
 /**
  * Obtém o APP token do servidor
  */
 async function fetchAppToken(): Promise<string> {
   console.log('🔑 Obtendo novo APP token da API...');
 
-  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/token`, {
+import { API_BASE_URL } from "./base-url";
     method: 'GET',
     credentials: 'omit', // Não enviar cookies
   });
@@ -119,3 +120,4 @@ export async function refreshAppToken(): Promise<string> {
 export function clearStoredAppToken(): void {
   clearAppToken();
 }
+  const response = await fetch(`${API_BASE_URL}/auth/token`, {
