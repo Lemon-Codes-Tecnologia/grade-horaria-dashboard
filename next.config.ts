@@ -3,7 +3,7 @@ import type { RemotePattern } from "next/dist/shared/lib/image-config";
 
 const apiUrl =
   process.env.NEXT_PUBLIC_API_URL ??
-  "https://grade-horaria-api-c21a7f69ca18.herokuapp.com/";
+  "https://grade-horaria-api-c21a7f69ca18.herokuapp.com";
 
 const apiPattern: RemotePattern | null = apiUrl
   ? (() => {
