@@ -1,11 +1,9 @@
-import type { NextConfig } from "next";
-import type { RemotePattern } from "next/dist/shared/lib/image-config";
-
+/** @type {import('next').NextConfig} */
 const apiUrl =
   process.env.NEXT_PUBLIC_API_URL ??
   "https://grade-horaria-api-c21a7f69ca18.herokuapp.com/";
 
-const buildApiPattern = (rawUrl?: string): RemotePattern | null => {
+const buildApiPattern = (rawUrl) => {
   if (!rawUrl) {
     return null;
   }
@@ -15,11 +13,11 @@ const buildApiPattern = (rawUrl?: string): RemotePattern | null => {
       return null;
     }
     return {
-      protocol: url.protocol.replace(":", "") as "http" | "https",
+      protocol: url.protocol.replace(":", ""),
       hostname: url.hostname,
       port: url.port || undefined,
       pathname: "/public/**",
-    } as RemotePattern;
+    };
   } catch {
     return null;
   }
@@ -27,21 +25,20 @@ const buildApiPattern = (rawUrl?: string): RemotePattern | null => {
 
 const apiPattern = buildApiPattern(apiUrl);
 
-const remotePatterns: RemotePattern[] = [
+const remotePatterns = [
   {
     protocol: "http",
     hostname: "localhost",
     port: "4000",
     pathname: "/public/**",
-  } as RemotePattern,
+  },
 ];
 
 if (apiPattern) {
   remotePatterns.push(apiPattern);
 }
 
-const nextConfig: NextConfig = {
-  /* config options here */
+const nextConfig = {
   images: {
     remotePatterns,
   },
@@ -63,16 +60,14 @@ const nextConfig: NextConfig = {
     });
     return config;
   },
-    
-    turbopack: {
-      rules: {
-        '*.svg': {
-          loaders: ['@svgr/webpack'],
-          as: '*.js',
-        },
+  turbopack: {
+    rules: {
+      "*.svg": {
+        loaders: ["@svgr/webpack"],
+        as: "*.js",
       },
     },
-  
+  },
 };
 
 export default nextConfig;
