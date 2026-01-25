@@ -5,6 +5,8 @@
  * Este token é obtido em /gradehoraria/auth/token e tem validade de 24h
  */
 
+import { API_BASE_URL } from "./base-url";
+
 const APP_TOKEN_KEY = 'gh_app_token';
 const APP_TOKEN_EXPIRY_KEY = 'gh_app_token_expiry';
 
@@ -12,14 +14,13 @@ interface AppTokenResponse {
   token: string;
 }
 
-// @ts-ignore
 /**
  * Obtém o APP token do servidor
  */
 async function fetchAppToken(): Promise<string> {
   console.log('🔑 Obtendo novo APP token da API...');
 
-import { API_BASE_URL } from "./base-url";
+  const response = await fetch(`${API_BASE_URL}/auth/token`, {
     method: 'GET',
     credentials: 'omit', // Não enviar cookies
   });
@@ -120,4 +121,3 @@ export async function refreshAppToken(): Promise<string> {
 export function clearStoredAppToken(): void {
   clearAppToken();
 }
-  const response = await fetch(`${API_BASE_URL}/auth/token`, {
