@@ -40,14 +40,14 @@ const navItems: NavItem[] = [
       { name: "Grades Horárias", path: "/planejamento/grade-horaria", pro: false },
     ],
   },
-  {
-    name: "Substituições",
-    icon: <TaskIcon />,
-    subItems: [
-      { name: "Painel de Substituições", path: "/substituicoes/painel", pro: false },
-      { name: "Minhas Solicitações", path: "/substituicoes/minhas", pro: false },
-    ],
-  },
+  // {
+  //   name: "Substituições",
+  //   icon: <TaskIcon />,
+  //   subItems: [
+  //     { name: "Painel de Substituições", path: "/substituicoes/painel", pro: false },
+  //     { name: "Minhas Solicitações", path: "/substituicoes/minhas", pro: false },
+  //   ],
+  // },
   {
     name: "Usuários & Acesso",
     icon: <UserCircleIcon />,
