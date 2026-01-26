@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, Controller, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
@@ -59,6 +59,7 @@ const disciplinaSchema = z.object({
 });
 
 type DisciplinaFormData = z.infer<typeof disciplinaSchema>;
+const disciplinaResolver = zodResolver(disciplinaSchema) as Resolver<DisciplinaFormData>;
 
 const tipoDisciplinaOptions: { value: TipoDisciplina; label: string }[] = [
   { value: "regular", label: "Regular" },
@@ -84,7 +85,7 @@ export default function EditarDisciplinaPage() {
     reset,
     watch,
   } = useForm<DisciplinaFormData>({
-    resolver: zodResolver(disciplinaSchema),
+    resolver: disciplinaResolver,
     defaultValues: {
       nome: "",
       codigo: "",

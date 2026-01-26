@@ -1,8 +1,8 @@
 "use client";
-import React, { useState } from "react";
+import React from "react";
 import Button from "@/components/ui/button/Button";
 
-type PlanType = "mensal" | "anual";
+type PlanType = "anual";
 
 interface Plan {
   id: string;
@@ -10,7 +10,7 @@ interface Plan {
   description: string;
   monthlyPrice: number;
   yearlyPrice: number;
-  maxTurmas: string;
+  maxTurmas?: string;
   features: string[];
   popular?: boolean;
   color: string;
@@ -23,18 +23,18 @@ const plans: Plan[] = [
     description: "Ideal para escolas pequenas",
     monthlyPrice: 49.90,
     yearlyPrice: 499,
-    maxTurmas: "até 10 turmas",
     color: "gray",
     features: [
       "Até 10 turmas",
+      "App para professor",
       "Criação e edição de grades",
+      "Exportação da grade em PDF",
       "Cadastro de professores, alunos e responsáveis",
       "Avisos por turma",
-      "Mural básico (texto e imagens)",
-      "Notificações básicas",
-      "App para professores, alunos e responsáveis",
-      "Diário de classe (presença) – básico",
-      "Suporte básico",
+      "Mural básico (apenas texto)",
+      "2 GB incluídos para armazenamento de arquivos no mural (R$ 99,00/ano por pacote extra de 10 GB " +
+      "ou R$ 299/ano por 50 GB, após atingir o limite)",
+      "Suporte básico por e-mail com prazo de resposta de até 24h úteis",
     ],
   },
   {
@@ -43,21 +43,18 @@ const plans: Plan[] = [
     description: "Para escolas em crescimento",
     monthlyPrice: 99.90,
     yearlyPrice: 999,
-    maxTurmas: "até 30 turmas",
     popular: true,
     color: "brand",
     features: [
       "Até 30 turmas",
       "Tudo do plano Essencial",
       "Troca de aulas completa (solicitação, aprovações e atualização automática)",
-      "Mural avançado (documentos, PDFs, vídeos e notas)",
-      "Biblioteca de arquivos",
-      "Notificações personalizadas",
-      "Exportação da grade em PDF",
-      "Integração com Google e Apple Calendar",
-      "Diário de classe (presença) – avançado",
-      "Relatórios de presença, carga horária e trocas",
-      "Suporte prioritário",
+      "Mural avançado (pode anexar imagens e PDFs)",
+      "20 GB incluídos para armazenamento de arquivos no mural (R$ 99,00/ano por pacote extra de 10 GB" +
+      " ou R$ 299/ano por 50 GB, após atingir o limite)",
+      // "Diário de classe (presença) – avançado",
+      // "Relatórios de presença, carga horária e trocas",
+      "Suporte básico por e-mail com prazo de resposta de até 8h úteis",
     ],
   },
   {
@@ -66,22 +63,22 @@ const plans: Plan[] = [
     description: "Solução completa para grandes escolas",
     monthlyPrice: 199.90,
     yearlyPrice: 1999,
-    maxTurmas: "acima de 50 turmas (ilimitado)",
     color: "purple",
     features: [
-      "Acima de 50 turmas (ilimitado)",
+      "Turmas ilimitadas",
+      "App para professor, alunos e pais",
       "Tudo do plano Avançado",
-      "Histórico completo e ilimitado",
-      "Mais espaço para arquivos",
+      "100 GB incluídos para armazenamento de arquivos no mural (R$ 99,00/ano por pacote extra de 10 GB" +
+      " ou R$ 299/ano por 50 GB, após atingir o limite)",
       "Módulos premium futuros incluídos",
-      "Customizações leves por escola",
-      "SLA e suporte dedicado",
+      "Customizações de grades (escolha de tema, cores)",
+      "SLA e suporte dedicado e especializado via chat",
     ],
   },
 ];
 
 export default function AssinaturasPage() {
-  const [billingPeriod, setBillingPeriod] = useState<PlanType>("anual");
+  const billingPeriod: PlanType = "anual";
 
   const getColorClasses = (color: string, variant: "bg" | "border" | "text" | "badge") => {
     const colorMap: Record<string, Record<string, string>> = {
@@ -115,16 +112,6 @@ export default function AssinaturasPage() {
     }).format(price);
   };
 
-  const getEconomyText = (plan: Plan) => {
-    if (billingPeriod === "anual") {
-      const monthlyTotal = plan.monthlyPrice * 12;
-      const savings = monthlyTotal - plan.yearlyPrice;
-      const percentage = Math.round((savings / monthlyTotal) * 100);
-      return `Economize ${percentage}%`;
-    }
-    return null;
-  };
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -135,35 +122,6 @@ export default function AssinaturasPage() {
         <p className="mt-2 text-gray-500 dark:text-gray-400">
           Selecione o plano ideal para sua escola
         </p>
-      </div>
-
-      {/* Billing Toggle */}
-      <div className="flex justify-center">
-        <div className="inline-flex items-center gap-3 rounded-lg border border-gray-200 bg-white p-1 dark:border-gray-800 dark:bg-gray-900">
-          <button
-            onClick={() => setBillingPeriod("mensal")}
-            className={`rounded-md px-6 py-2 text-sm font-medium transition-colors ${
-              billingPeriod === "mensal"
-                ? "bg-brand-500 text-white"
-                : "text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200"
-            }`}
-          >
-            Mensal
-          </button>
-          <button
-            onClick={() => setBillingPeriod("anual")}
-            className={`rounded-md px-6 py-2 text-sm font-medium transition-colors ${
-              billingPeriod === "anual"
-                ? "bg-brand-500 text-white"
-                : "text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200"
-            }`}
-          >
-            Anual
-            <span className="ml-2 rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-700 dark:bg-green-900 dark:text-green-300">
-              Economize até 17%
-            </span>
-          </button>
-        </div>
       </div>
 
       {/* Plans Grid */}
@@ -206,11 +164,6 @@ export default function AssinaturasPage() {
                   /{billingPeriod === "anual" ? "ano" : "mês"}
                 </span>
               </div>
-              {billingPeriod === "anual" && getEconomyText(plan) && (
-                <p className="mt-1 text-sm font-medium text-green-600 dark:text-green-400">
-                  {getEconomyText(plan)}
-                </p>
-              )}
               <p className="mt-2 text-sm font-medium text-gray-700 dark:text-gray-300">
                 {plan.maxTurmas}
               </p>
@@ -245,11 +198,10 @@ export default function AssinaturasPage() {
               className={`w-full ${
                 plan.popular
                   ? ""
-                  : "!bg-gray-100 !text-gray-700 hover:!bg-gray-200 dark:!bg-gray-800 dark:!text-gray-300 dark:hover:!bg-gray-700"
+                  : "!bg-gray-100 !text-gray-700 hover:!bg-brand-500 hover:!text-white dark:!bg-gray-800 dark:!text-gray-300 dark:hover:!bg-brand-500 dark:hover:!text-white"
               }`}
-              variant={plan.popular ? "default" : "outline"}
             >
-              {plan.popular ? "Escolher Plano" : "Começar Agora"}
+              {plan.popular ? "Escolher Plano" : "Escolher Plano"}
             </Button>
           </div>
         ))}
@@ -274,7 +226,9 @@ export default function AssinaturasPage() {
               Como funciona o período de teste?
             </h4>
             <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-              Oferecemos 14 dias de teste grátis em todos os planos. Não é necessário cartão de crédito.
+              Oferecemos 7 dias de teste grátis com todos os recursos liberados com limite de utilização.
+              No período de teste apenas uma grade poderá ser criada. Caso exclua a grade não poderá criar uma nova.
+              Não é necessário informar cartão de crédito no período de teste.
             </p>
           </div>
           <div>
@@ -282,21 +236,21 @@ export default function AssinaturasPage() {
               Quais formas de pagamento são aceitas?
             </h4>
             <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-              Aceitamos cartão de crédito, boleto bancário e PIX.
+              Aceitamos cartão de crédito e PIX.
             </p>
           </div>
         </div>
       </div>
 
       {/* Contact Section */}
-      <div className="text-center">
-        <p className="text-sm text-gray-600 dark:text-gray-400">
-          Precisa de um plano personalizado?{" "}
-          <a href="mailto:contato@gradehoraria.com" className="font-medium text-brand-500 hover:text-brand-600">
-            Entre em contato
-          </a>
-        </p>
-      </div>
+      {/*<div className="text-center">*/}
+      {/*  <p className="text-sm text-gray-600 dark:text-gray-400">*/}
+      {/*    Precisa de um plano personalizado?{" "}*/}
+      {/*    <a href="mailto:contato@gradehoraria.com" className="font-medium text-brand-500 hover:text-brand-600">*/}
+      {/*      Entre em contato*/}
+      {/*    </a>*/}
+      {/*  </p>*/}
+      {/*</div>*/}
     </div>
   );
 }

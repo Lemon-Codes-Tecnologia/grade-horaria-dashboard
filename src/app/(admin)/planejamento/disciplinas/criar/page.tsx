@@ -1,7 +1,7 @@
 "use client";
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useForm, Controller } from "react-hook-form";
+import { useForm, Controller, type Resolver, type SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
@@ -53,6 +53,7 @@ const disciplinaSchema = z.object({
 });
 
 type DisciplinaFormData = z.infer<typeof disciplinaSchema>;
+const disciplinaResolver = zodResolver(disciplinaSchema) as Resolver<DisciplinaFormData>;
 
 const tipoDisciplinaOptions: { value: TipoDisciplina; label: string }[] = [
   { value: "regular", label: "Regular" },
@@ -73,7 +74,7 @@ export default function CriarDisciplinaPage() {
     control,
     watch,
   } = useForm<DisciplinaFormData>({
-    resolver: zodResolver(disciplinaSchema),
+    resolver: disciplinaResolver,
     defaultValues: {
       nome: "",
       codigo: "",
@@ -85,7 +86,7 @@ export default function CriarDisciplinaPage() {
     },
   });
 
-  const onSubmit = async (data: DisciplinaFormData) => {
+  const onSubmit: SubmitHandler<DisciplinaFormData> = async (data) => {
     // Validação: verifica se há escola selecionada
     if (!selectedSchool) {
       toast.error("Nenhuma escola selecionada", {
@@ -96,18 +97,20 @@ export default function CriarDisciplinaPage() {
 
     setIsSubmitting(true);
     try {
-      const response = await createDisciplina({
-        idEscola: selectedSchool._id, // ID da escola selecionada
-        nome: data.nome,
-        codigo: data.codigo.toUpperCase(), // Garante que o código está em maiúsculas
-        cargaHoraria: typeof data.cargaHoraria === "string"
-          ? parseInt(data.cargaHoraria, 10)
-          : data.cargaHoraria,
-        cor: data.cor || undefined,
-        descricao: data.descricao || undefined,
-        tipo: data.tipo,
-        salaEspecifica: data.salaEspecifica || undefined,
-      });
+      const response = await createDisciplina(
+        {
+          nome: data.nome,
+          codigo: data.codigo.toUpperCase(), // Garante que o código está em maiúsculas
+          cargaHoraria: typeof data.cargaHoraria === "string"
+            ? parseInt(data.cargaHoraria, 10)
+            : data.cargaHoraria,
+          cor: data.cor || undefined,
+          descricao: data.descricao || undefined,
+          tipo: data.tipo,
+          salaEspecifica: data.salaEspecifica || undefined,
+        },
+        selectedSchool._id // ID da escola selecionada
+      );
 
       toast.success(response.message || "Disciplina criada com sucesso!", {
         description: response.payload?.nome
