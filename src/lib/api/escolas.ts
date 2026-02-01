@@ -40,14 +40,18 @@ export interface HorarioTurno {
   inicioIntervalo?: string;
 }
 
+export type HorariosDisponiveisPorTurno = {
+  manha?: HorarioTurno;
+  tarde?: HorarioTurno;
+  noite?: HorarioTurno;
+};
+
+export type HorariosDisponiveisPorNivelTurno = Partial<Record<NivelEnsino, Partial<Record<Turno, HorarioTurno>>>>;
+
 export interface Configuracoes {
   diasLetivos?: DiaSemana[];
   turnosDisponiveis?: Turno[];
-  horariosDisponiveis?: {
-    manha?: HorarioTurno;
-    tarde?: HorarioTurno;
-    noite?: HorarioTurno;
-  };
+  horariosDisponiveis?: HorariosDisponiveisPorNivelTurno | HorariosDisponiveisPorTurno;
 }
 
 export interface Escola {
@@ -145,11 +149,7 @@ export interface CreateEscolaData {
   nivelEnsino?: NivelEnsino[];
   diasLetivos?: DiaSemana[];
   turnosDisponiveis?: Turno[];
-  horariosDisponiveis?: {
-    manha?: HorarioTurno;
-    tarde?: HorarioTurno;
-    noite?: HorarioTurno;
-  };
+  horariosDisponiveis?: HorariosDisponiveisPorNivelTurno | HorariosDisponiveisPorTurno;
   inep?: string; // 8 dígitos
   cnpj?: string; // 14 dígitos
   contato?: Contato;

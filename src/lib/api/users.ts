@@ -8,6 +8,7 @@ export interface User {
   nome: string;
   email: string;
   tipo: string;
+  permissoes?: string[];
   cargo?: string;
   escolas?: any[]; // API uses escolas array
   escola?: string; // For compatibility
@@ -23,6 +24,26 @@ export interface ApiResponse<T> {
   message?: string;
   payload?: T;
   data?: T; // Support for new API structure
+}
+
+export interface UserTypesResponse {
+  tipos: string[];
+  tiposCriacaoEscola: string[];
+}
+
+export interface Profile {
+  _id: string;
+  slug: string;
+  nome: string;
+  descricao?: string;
+  ordem?: number;
+  acessoApp?: boolean;
+  acessoWeb?: boolean;
+  podeCriarTipos?: string[];
+  permissoes?: string[];
+  ativo?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 // 1. Register User (Auto-cadastro público)
@@ -101,7 +122,7 @@ export const validateRecoveryCode = async (
   data: ValidateRecoveryCodeData
 ): Promise<ApiResponse<null>> => {
   const response = await apiClient.post<ApiResponse<null>>(
-    "/public/usuario/validar-código",
+    "/public/usuario/validar-codigo",
     data
   );
 
@@ -111,14 +132,14 @@ export const validateRecoveryCode = async (
 // 3. Password Recovery - Step 3: Reset Password
 export interface ResetPasswordData {
   email: string;
-  password: string;
-  code: string;
+  pass: string;
 }
 
 export const resetPassword = async (data: ResetPasswordData): Promise<ApiResponse<null>> => {
+  const { email, pass } = data;
   const response = await apiClient.post<ApiResponse<null>>(
     "/public/usuario/nova-senha",
-    data
+    { email, pass }
   );
 
   return response.data;
@@ -131,8 +152,8 @@ export interface ValidateEmailData {
 
 export const validateEmail = async (
   data: ValidateEmailData
-): Promise<ApiResponse<{ available: boolean }>> => {
-  const response = await apiClient.post<ApiResponse<{ available: boolean }>>(
+): Promise<ApiResponse<{ hasEmail: boolean }>> => {
+  const response = await apiClient.post<ApiResponse<{ hasEmail: boolean }>>(
     "/public/usuario/validar-email",
     data
   );
@@ -161,14 +182,35 @@ export const getLoggedUser = async (): Promise<ApiResponse<User>> => {
   return response.data;
 };
 
+// 5.1 Get User Types (Admin/Support/Director)
+export const getUserTypes = async (): Promise<ApiResponse<UserTypesResponse>> => {
+  const response = await apiClient.get<ApiResponse<UserTypesResponse>>(
+    "/private/usuario/tipos"
+  );
+
+  return response.data;
+};
+
+// 5.2 Get Profiles (Admin/Support/Director/Coordinator)
+export const getProfiles = async (): Promise<ApiResponse<Profile[]>> => {
+  const response = await apiClient.get<ApiResponse<Profile[]>>(
+    "/private/perfis"
+  );
+
+  return response.data;
+};
+
 // 6. Create User by School (Director/Coordinator/Secretary)
 export interface CreateUserBySchoolData {
   nome: string;
   email: string;
   tipo: string;
+  permissoes?: string[];
   turmaId?: string;
   professorId?: string;
   filhos?: any[];
+  escola?: string;
+  escolaId?: string;
 }
 
 export const createUserBySchool = async (
@@ -190,13 +232,11 @@ export interface ListUsersParams {
 }
 
 export interface ListUsersResponse {
-  users: User[];
-  pagination: {
-    currentPage: number;
-    totalPages: number;
-    totalItems: number;
-    itemsPerPage: number;
-  };
+  docs: User[];
+  totalDocs: number;
+  limit: number;
+  page: number;
+  totalPages: number;
 }
 
 export const listUsers = async (
@@ -220,11 +260,23 @@ export const getUser = async (userId: string): Promise<ApiResponse<User>> => {
   return response.data;
 };
 
+// 8.1. Resend Credentials (Admin/Support/Director)
+export const resendUserCredentials = async (
+  userId: string
+): Promise<ApiResponse<null>> => {
+  const response = await apiClient.post<ApiResponse<null>>(
+    `/private/usuario/${userId}`
+  );
+
+  return response.data;
+};
+
 // 9. Update User (Admin/Support only)
 export interface UpdateUserData {
   nome?: string;
   email?: string;
   tipo?: string;
+  permissoes?: string[];
   cargo?: string;
   telefone?: string;
   ativo?: boolean;
@@ -273,6 +325,7 @@ export const assignPlan = async (
 // 12. Validate Apple Receipt (Legacy)
 export interface AppleReceiptData {
   receiptData: string;
+  isSandbox?: boolean;
 }
 
 export const validateAppleReceipt = async (

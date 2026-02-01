@@ -320,17 +320,44 @@ export default function DetalhesInstituicaoPage() {
           <div>
             <p className="text-sm text-gray-500 dark:text-gray-400">Turnos e Horários Disponíveis</p>
             <div className="mt-2 space-y-3">
-              {escola.configuracoes?.horariosDisponiveis && Object.keys(escola.configuracoes.horariosDisponiveis).length > 0 ? (
-                Object.entries(escola.configuracoes.horariosDisponiveis).map(([turno, horario]: [string, any]) => (
-                  <div key={turno} className="flex items-center gap-3">
-                    <span className="inline-flex rounded-full bg-green-50 px-3 py-1 text-xs font-medium text-green-700 dark:bg-green-500/10 dark:text-green-400">
-                      {formatTurno(turno)}
-                    </span>
-                    <span className="text-sm text-gray-600 dark:text-gray-400">
-                      {horario.inicio} - {horario.fim} • Aula: {horario.duracaoAula}min • Intervalo: {horario.intervalo}min
-                    </span>
-                  </div>
-                ))
+              {escola.configuracoes?.horariosDisponiveis &&
+              Object.keys(escola.configuracoes.horariosDisponiveis).length > 0 ? (
+                (() => {
+                  const horarios = escola.configuracoes?.horariosDisponiveis as Record<string, any>;
+                  const isLegacy =
+                    "manha" in horarios || "tarde" in horarios || "noite" in horarios;
+
+                  if (isLegacy) {
+                    return Object.entries(horarios).map(([turno, horario]) => (
+                      <div key={turno} className="flex items-center gap-3">
+                        <span className="inline-flex rounded-full bg-green-50 px-3 py-1 text-xs font-medium text-green-700 dark:bg-green-500/10 dark:text-green-400">
+                          {formatTurno(turno)}
+                        </span>
+                        <span className="text-sm text-gray-600 dark:text-gray-400">
+                          {horario.inicio} - {horario.fim} • Aula: {horario.duracaoAula}min • Intervalo: {horario.intervalo}min
+                        </span>
+                      </div>
+                    ));
+                  }
+
+                  return Object.entries(horarios).map(([nivel, turnos]) => (
+                    <div key={nivel} className="space-y-2">
+                      <span className="inline-flex rounded-full bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700 dark:bg-blue-500/10 dark:text-blue-400">
+                        {formatNivelEnsino(nivel)}
+                      </span>
+                      {Object.entries(turnos as Record<string, any>).map(([turno, horario]) => (
+                        <div key={`${nivel}-${turno}`} className="ml-2 flex items-center gap-3">
+                          <span className="inline-flex rounded-full bg-green-50 px-3 py-1 text-xs font-medium text-green-700 dark:bg-green-500/10 dark:text-green-400">
+                            {formatTurno(turno)}
+                          </span>
+                          <span className="text-sm text-gray-600 dark:text-gray-400">
+                            {horario.inicio} - {horario.fim} • Aula: {horario.duracaoAula}min • Intervalo: {horario.intervalo}min
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  ));
+                })()
               ) : (
                 <span className="text-sm text-gray-500 dark:text-gray-400">Não configurado</span>
               )}

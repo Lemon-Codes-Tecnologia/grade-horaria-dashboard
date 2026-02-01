@@ -525,122 +525,6 @@ export default function EditarGradeHorariaPage() {
           </div>
         </div>
 
-        {/* Tema da Grade */}
-        <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
-          <h2 className="mb-4 text-lg font-medium text-gray-800 dark:text-white/90">
-            Tema da Grade
-          </h2>
-          <div className="flex flex-wrap gap-2 mb-6">
-            <button
-              type="button"
-              onClick={() => setTemaTipo("preset")}
-              className={`rounded-full px-4 py-2 text-sm font-medium transition ${
-                temaTipo === "preset"
-                  ? "bg-brand-500 text-white"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
-              }`}
-            >
-              Presets
-            </button>
-            <button
-              type="button"
-              onClick={() => setTemaTipo("custom")}
-              className={`rounded-full px-4 py-2 text-sm font-medium transition ${
-                temaTipo === "custom"
-                  ? "bg-brand-500 text-white"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
-              }`}
-            >
-              Custom
-            </button>
-          </div>
-
-          {temaTipo === "preset" ? (
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-              {gradeThemes.length === 0 && (
-                <div className="rounded-lg border border-dashed border-gray-200 p-4 text-sm text-gray-500 dark:border-gray-800 dark:text-gray-400">
-                  Nenhum tema preset disponível no momento.
-                </div>
-              )}
-              {gradeThemes.map((theme) => {
-                const previewBg = theme.config?.background || "#ffffff";
-                const previewPrimary = theme.config?.primaryColor || "#6366f1";
-                const isSelected = temaPresetId === theme.id;
-                return (
-                  <button
-                    key={theme.id}
-                    type="button"
-                    onClick={() => setTemaPresetId(theme.id)}
-                    className={`rounded-xl border p-4 text-left transition ${
-                      isSelected
-                        ? "border-brand-500 ring-2 ring-brand-200"
-                        : "border-gray-200 hover:border-gray-300 dark:border-gray-800 dark:hover:border-gray-700"
-                    }`}
-                  >
-                    <div
-                      className="h-16 w-full rounded-lg border border-gray-200 dark:border-gray-800"
-                      style={{
-                        background: previewBg,
-                        backgroundImage: `linear-gradient(135deg, ${previewPrimary}33 0%, transparent 55%)`,
-                      }}
-                    />
-                    <p className="mt-3 text-sm font-medium text-gray-800 dark:text-white/90">
-                      {theme.nome}
-                    </p>
-                  </button>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-              <div>
-                <Label htmlFor="customPrimary">Cor primária</Label>
-                <input
-                  id="customPrimary"
-                  type="color"
-                  value={temaCustom.primaryColor || "#6366f1"}
-                  onChange={(e) => setTemaCustom((prev) => ({ ...prev, primaryColor: e.target.value }))}
-                  className="h-12 w-full cursor-pointer rounded-lg border border-gray-200 bg-white p-1 dark:border-gray-800 dark:bg-gray-900"
-                />
-              </div>
-              <div>
-                <Label htmlFor="customAccent">Cor de destaque</Label>
-                <input
-                  id="customAccent"
-                  type="color"
-                  value={temaCustom.accentColor || "#22c55e"}
-                  onChange={(e) => setTemaCustom((prev) => ({ ...prev, accentColor: e.target.value }))}
-                  className="h-12 w-full cursor-pointer rounded-lg border border-gray-200 bg-white p-1 dark:border-gray-800 dark:bg-gray-900"
-                />
-              </div>
-              <div>
-                <Label htmlFor="customBackground">Cor de fundo</Label>
-                <input
-                  id="customBackground"
-                  type="color"
-                  value={temaCustom.background || "#ffffff"}
-                  onChange={(e) => setTemaCustom((prev) => ({ ...prev, background: e.target.value }))}
-                  className="h-12 w-full cursor-pointer rounded-lg border border-gray-200 bg-white p-1 dark:border-gray-800 dark:bg-gray-900"
-                />
-              </div>
-              <div>
-                <Label htmlFor="customPattern">Padrão</Label>
-                <select
-                  id="customPattern"
-                  value={temaCustom.pattern || ""}
-                  onChange={(e) => setTemaCustom((prev) => ({ ...prev, pattern: e.target.value }))}
-                  className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-700 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300"
-                >
-                  <option value="">Sem padrão</option>
-                  <option value="dots">Pontilhado</option>
-                  <option value="snow">Neve</option>
-                  <option value="hearts">Corações</option>
-                </select>
-              </div>
-            </div>
-          )}
-        </div>
-
         {/* Configurações Avançadas */}
         <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
           <div className="flex items-center justify-between mb-4">
@@ -823,6 +707,124 @@ export default function EditarGradeHorariaPage() {
                     horarioSelecionado={horarioSelecionado}
                     todosHorarios={grade.horarios || []}
                   />
+
+                  {/* Tema da Grade */}
+                  <div className="mt-6 rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900">
+                    <div className="flex items-center justify-between mb-3">
+                      <h2 className="text-sm font-semibold text-gray-800 dark:text-white/90">
+                        Tema da Grade
+                      </h2>
+                    </div>
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      <button
+                        type="button"
+                        onClick={() => setTemaTipo("preset")}
+                        className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
+                          temaTipo === "preset"
+                            ? "bg-brand-500 text-white"
+                            : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+                        }`}
+                      >
+                        Presets
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setTemaTipo("custom")}
+                        className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
+                          temaTipo === "custom"
+                            ? "bg-brand-500 text-white"
+                            : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+                        }`}
+                      >
+                        Custom
+                      </button>
+                    </div>
+
+                    {temaTipo === "preset" ? (
+                      <div className="grid grid-cols-2 gap-3">
+                        {gradeThemes.length === 0 && (
+                          <div className="rounded-lg border border-dashed border-gray-200 p-3 text-xs text-gray-500 dark:border-gray-800 dark:text-gray-400">
+                            Nenhum tema preset disponível no momento.
+                          </div>
+                        )}
+                        {gradeThemes.map((theme) => {
+                          const previewBg = theme.config?.background || "#ffffff";
+                          const previewPrimary = theme.config?.primaryColor || "#6366f1";
+                          const isSelected = temaPresetId === theme.id;
+                          return (
+                            <button
+                              key={theme.id}
+                              type="button"
+                              onClick={() => setTemaPresetId(theme.id)}
+                              className={`rounded-lg border p-2 text-left transition ${
+                                isSelected
+                                  ? "border-brand-500 ring-1 ring-brand-200"
+                                  : "border-gray-200 hover:border-gray-300 dark:border-gray-800 dark:hover:border-gray-700"
+                              }`}
+                            >
+                              <div
+                                className="h-10 w-full rounded-md border border-gray-200 dark:border-gray-800"
+                                style={{
+                                  background: previewBg,
+                                  backgroundImage: `linear-gradient(135deg, ${previewPrimary}33 0%, transparent 55%)`,
+                                }}
+                              />
+                              <p className="mt-2 text-xs font-medium text-gray-700 dark:text-gray-200">
+                                {theme.nome}
+                              </p>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-1 gap-4">
+                        <div>
+                          <Label htmlFor="customPrimary">Cor primária</Label>
+                          <input
+                            id="customPrimary"
+                            type="color"
+                            value={temaCustom.primaryColor || "#6366f1"}
+                            onChange={(e) => setTemaCustom((prev) => ({ ...prev, primaryColor: e.target.value }))}
+                            className="h-10 w-full cursor-pointer rounded-lg border border-gray-200 bg-white p-1 dark:border-gray-800 dark:bg-gray-900"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="customAccent">Cor de destaque</Label>
+                          <input
+                            id="customAccent"
+                            type="color"
+                            value={temaCustom.accentColor || "#22c55e"}
+                            onChange={(e) => setTemaCustom((prev) => ({ ...prev, accentColor: e.target.value }))}
+                            className="h-10 w-full cursor-pointer rounded-lg border border-gray-200 bg-white p-1 dark:border-gray-800 dark:bg-gray-900"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="customBackground">Cor de fundo</Label>
+                          <input
+                            id="customBackground"
+                            type="color"
+                            value={temaCustom.background || "#ffffff"}
+                            onChange={(e) => setTemaCustom((prev) => ({ ...prev, background: e.target.value }))}
+                            className="h-10 w-full cursor-pointer rounded-lg border border-gray-200 bg-white p-1 dark:border-gray-800 dark:bg-gray-900"
+                          />
+                        </div>
+                        <div>
+                          <Label htmlFor="customPattern">Padrão</Label>
+                          <select
+                            id="customPattern"
+                            value={temaCustom.pattern || ""}
+                            onChange={(e) => setTemaCustom((prev) => ({ ...prev, pattern: e.target.value }))}
+                            className="w-full rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs text-gray-700 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300"
+                          >
+                            <option value="">Sem padrão</option>
+                            <option value="dots">Pontilhado</option>
+                            <option value="snow">Neve</option>
+                            <option value="hearts">Corações</option>
+                          </select>
+                        </div>
+                      </div>
+                    )}
+                  </div>
 
                   {/* Informações de Edição */}
                   {!grade.validada && (

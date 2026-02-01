@@ -1,5 +1,5 @@
 import apiClient from "./client";
-import type { DiaSemana } from "./escolas";
+import type { DiaSemana, NivelEnsino } from "./escolas";
 
 // ============================================================================
 // TYPES & INTERFACES
@@ -34,6 +34,7 @@ export interface Turma {
   codigo: string; // Código único por escola (A-Z/0-9, 2-20 chars)
   serie: string; // 1-50 chars
   ano: number; // 1-12
+  nivelEnsino?: NivelEnsino[];
   turno: Turno;
   capacidadeMaxima: number;
   quantidadeAlunos?: number;
@@ -123,6 +124,7 @@ export interface CreateTurmaData {
   codigo: string; // A-Z/0-9, 2-20 chars (maiúsculo)
   ano: number; // int 1-12 (obrigatório)
   serie: string; // 1-50 chars (obrigatório)
+  nivelEnsino?: NivelEnsino[];
   turno: Turno; // manha | tarde | noite | integral
   capacidadeMaxima: number; // int > 0 (obrigatório)
   quantidadeAlunos?: number; // int >= 0 (opcional)
@@ -185,6 +187,7 @@ export interface UpdateTurmaData {
   codigo?: string; // A-Z/0-9, 2-20 chars (maiúsculo)
   ano?: number; // int 1-12
   serie?: string; // 1-50 chars
+  nivelEnsino?: NivelEnsino[];
   turno?: Turno; // manha | tarde | noite | integral
   capacidadeMaxima?: number; // int > 0
   quantidadeAlunos?: number; // int >= 0

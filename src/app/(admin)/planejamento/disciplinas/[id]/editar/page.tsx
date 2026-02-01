@@ -13,7 +13,6 @@ import Link from "next/link";
 import {
   getDisciplina,
   updateDisciplina,
-  type TipoDisciplina,
 } from "@/lib/api/disciplinas";
 import { useSchool } from "@/context/SchoolContext";
 
@@ -30,43 +29,17 @@ const disciplinaSchema = z.object({
     .max(20, "Código deve ter no máximo 20 caracteres")
     .regex(/^[A-Z0-9]+$/, "Código deve conter apenas letras maiúsculas e números")
     .optional(),
-  cargaHoraria: z
-    .number()
-    .min(1, "Carga horária deve ser maior que 0")
-    .or(
-      z
-        .string()
-        .transform((val) => parseInt(val, 10))
-        .refine((val) => !isNaN(val) && val > 0, "Carga horária deve ser maior que 0")
-    )
-    .optional(),
   cor: z
     .string()
     .regex(/^#([0-9A-F]{3}|[0-9A-F]{6})$/i, "Cor deve estar no formato #RGB ou #RRGGBB")
     .optional()
     .or(z.literal("")),
-  descricao: z
-    .string()
-    .max(500, "Descrição deve ter no máximo 500 caracteres")
-    .optional()
-    .or(z.literal("")),
-  tipo: z.enum(["regular", "laboratorio", "educacao_fisica", "arte"], {
-    message: "Tipo de disciplina é obrigatório",
-  }).optional(),
-  requerSequencia: z.boolean().optional(),
-  salaEspecifica: z.string().optional().or(z.literal("")),
   ativa: z.boolean().optional(),
 });
 
 type DisciplinaFormData = z.infer<typeof disciplinaSchema>;
 const disciplinaResolver = zodResolver(disciplinaSchema) as Resolver<DisciplinaFormData>;
 
-const tipoDisciplinaOptions: { value: TipoDisciplina; label: string }[] = [
-  { value: "regular", label: "Regular" },
-  { value: "laboratorio", label: "Laboratório" },
-  { value: "educacao_fisica", label: "Educação Física" },
-  { value: "arte", label: "Arte" },
-];
 
 export default function EditarDisciplinaPage() {
   const router = useRouter();
@@ -89,12 +62,7 @@ export default function EditarDisciplinaPage() {
     defaultValues: {
       nome: "",
       codigo: "",
-      cargaHoraria: "" as any,
-      tipo: "regular",
       cor: "#007bff",
-      descricao: "",
-      salaEspecifica: "",
-      requerSequencia: false,
       ativa: true,
     },
   });
@@ -113,12 +81,7 @@ export default function EditarDisciplinaPage() {
           reset({
             nome: disciplina.nome,
             codigo: disciplina.codigo,
-            cargaHoraria: disciplina.cargaHoraria,
             cor: disciplina.cor || "#007bff",
-            descricao: disciplina.descricao || "",
-            tipo: disciplina.tipo,
-            requerSequencia: disciplina.requerSequencia || false,
-            salaEspecifica: disciplina.salaEspecifica || "",
             ativa: disciplina.ativa,
           });
         }
@@ -151,14 +114,7 @@ export default function EditarDisciplinaPage() {
       const response = await updateDisciplina(id, {
         nome: data.nome,
         codigo: data.codigo?.toUpperCase(),
-        cargaHoraria: typeof data.cargaHoraria === "string"
-          ? parseInt(data.cargaHoraria, 10)
-          : data.cargaHoraria,
         cor: data.cor || undefined,
-        descricao: data.descricao || undefined,
-        tipo: data.tipo,
-        requerSequencia: data.requerSequencia,
-        salaEspecifica: data.salaEspecifica || undefined,
         ativa: data.ativa,
         idEscola: selectedSchool._id,
       });
@@ -258,39 +214,7 @@ export default function EditarDisciplinaPage() {
                 </p>
               </div>
 
-              <div>
-                <Label>Carga Horária (horas/semana)</Label>
-                <Input
-                  type="number"
-                  placeholder="40"
-                  {...register("cargaHoraria")}
-                  error={errors.cargaHoraria?.message}
-                  min={1}
-                />
-              </div>
 
-              <div>
-                <Label>Tipo de Disciplina</Label>
-                <Controller
-                  name="tipo"
-                  control={control}
-                  render={({ field }) => (
-                    <select
-                      {...field}
-                      className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-700 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300"
-                    >
-                      {tipoDisciplinaOptions.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                />
-                {errors.tipo && (
-                  <p className="mt-1 text-xs text-error-500">{errors.tipo.message}</p>
-                )}
-              </div>
 
               <div>
                 <Label>Cor da Disciplina</Label>
@@ -328,28 +252,14 @@ export default function EditarDisciplinaPage() {
                 )}
               </div>
 
-              <div className="md:col-span-2">
-                <Label>Descrição</Label>
-                <textarea
-                  placeholder="Descrição da disciplina (opcional)"
-                  {...register("descricao")}
-                  className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-700 placeholder-gray-400 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300 dark:placeholder-gray-500"
-                  rows={3}
-                  maxLength={500}
-                />
-                {errors.descricao && (
-                  <p className="mt-1 text-xs text-error-500">{errors.descricao.message}</p>
-                )}
-              </div>
             </div>
           </div>
 
           {/* Configurações Avançadas */}
           <div>
             <h2 className="mb-4 text-lg font-medium text-gray-800 dark:text-white/90">
-              Configurações Avançadas
+              Status da Disciplina
             </h2>
-
             <div className="space-y-4">
               {/* Status Ativa/Inativa */}
               <div className="flex items-center gap-3">
@@ -372,43 +282,6 @@ export default function EditarDisciplinaPage() {
                     Desmarque para desativar esta disciplina temporariamente
                   </p>
                 </div>
-              </div>
-
-              {/* Permite Sequência */}
-              <div className="flex items-center gap-3">
-                <Controller
-                  name="requerSequencia"
-                  control={control}
-                  render={({ field }) => (
-                    <input
-                      type="checkbox"
-                      {...field}
-                      value={field.value ? "true" : "false"}
-                      checked={field.value}
-                      className="h-4 w-4 rounded border-gray-300 text-brand-500 focus:ring-brand-500"
-                    />
-                  )}
-                />
-                <div>
-                  <Label className="mb-0">Permite Sequência</Label>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                    Indica se a disciplina permite ser ministrada em sequência (ex: Matemática I, II, III)
-                  </p>
-                </div>
-              </div>
-
-              {/* Sala Específica */}
-              <div>
-                <Label>Sala Específica</Label>
-                <Input
-                  type="text"
-                  placeholder="Ex: Laboratório de Química, Quadra Poliesportiva"
-                  {...register("salaEspecifica")}
-                  error={errors.salaEspecifica?.message}
-                />
-                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  Informe se a disciplina requer uma sala específica
-                </p>
               </div>
             </div>
           </div>

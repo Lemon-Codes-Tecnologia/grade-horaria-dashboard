@@ -9,7 +9,6 @@ import {
   deleteDisciplina,
   toggleDisciplinaStatus,
   type Disciplina,
-  type TipoDisciplina,
 } from "@/lib/api/disciplinas";
 import { useSchool } from "@/context/SchoolContext";
 import { toast } from "sonner";
@@ -123,25 +122,6 @@ export default function DisciplinasPage() {
     }
   };
 
-  const getTipoLabel = (tipo: TipoDisciplina) => {
-    const labels = {
-      regular: "Regular",
-      laboratorio: "Laboratório",
-      educacao_fisica: "Ed. Física",
-      arte: "Arte",
-    };
-    return labels[tipo];
-  };
-
-  const getTipoColor = (tipo: TipoDisciplina) => {
-    const colors = {
-      regular: "bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400",
-      laboratorio: "bg-purple-50 text-purple-700 dark:bg-purple-500/10 dark:text-purple-400",
-      educacao_fisica: "bg-green-50 text-green-700 dark:bg-green-500/10 dark:text-green-400",
-      arte: "bg-orange-50 text-orange-700 dark:bg-orange-500/10 dark:text-orange-400",
-    };
-    return colors[tipo];
-  };
 
   // Mensagem quando não há escola selecionada
   if (!selectedSchool && !isLoading) {
@@ -277,12 +257,6 @@ export default function DisciplinasPage() {
                         isHeader
                         className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
                       >
-                        Tipo
-                      </TableCell>
-                      <TableCell
-                        isHeader
-                        className="px-5 py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
-                      >
                         Carga Horária
                       </TableCell>
                       <TableCell
@@ -329,11 +303,6 @@ export default function DisciplinasPage() {
                               <div className="text-sm font-medium text-gray-800 dark:text-white/90">
                                 {disciplina.nome}
                               </div>
-                              {disciplina.descricao && (
-                                <div className="text-xs text-gray-500 dark:text-gray-400 truncate max-w-xs">
-                                  {disciplina.descricao}
-                                </div>
-                              )}
                             </div>
                           </div>
                         </TableCell>
@@ -341,12 +310,6 @@ export default function DisciplinasPage() {
                         <TableCell className="px-4 py-3 text-start">
                           <span className="text-sm font-mono text-gray-700 dark:text-gray-300">
                             {disciplina.codigo}
-                          </span>
-                        </TableCell>
-
-                        <TableCell className="px-4 py-3 text-start">
-                          <span className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${getTipoColor(disciplina.tipo)}`}>
-                            {getTipoLabel(disciplina.tipo)}
                           </span>
                         </TableCell>
 

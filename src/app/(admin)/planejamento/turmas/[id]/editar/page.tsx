@@ -16,6 +16,7 @@ import {
   type DiaSemana,
   type Turno,
 } from "@/lib/api/turmas";
+import type { NivelEnsino } from "@/lib/api/escolas";
 import { listProfessores, type Professor } from "@/lib/api/professores";
 import { listDisciplinas, type Disciplina as DisciplinaCadastrada } from "@/lib/api/disciplinas";
 import { useSchool } from "@/context/SchoolContext";
@@ -69,6 +70,15 @@ const turmaSchema = z.object({
 
 type TurmaFormData = z.infer<typeof turmaSchema>;
 
+const nivelEnsinoOptions: { value: NivelEnsino; label: string }[] = [
+  { value: "infantil", label: "Infantil" },
+  { value: "fundamental1", label: "Fundamental I" },
+  { value: "fundamental2", label: "Fundamental II" },
+  { value: "medio", label: "Médio" },
+  { value: "eja", label: "EJA" },
+  { value: "superior", label: "Superior" },
+];
+
 const serieOptions: { value: string; label: string }[] = [
   { value: "1ano_infantil", label: "1º Ano Infantil" },
   { value: "2ano_infantil", label: "2º Ano Infantil" },
@@ -116,6 +126,7 @@ export default function EditarTurmaPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [professores, setProfessores] = useState<Professor[]>([]);
   const [selectedDias, setSelectedDias] = useState<DiaSemana[]>([]);
+  const [selectedNiveis, setSelectedNiveis] = useState<NivelEnsino[]>([]);
 
   // Estados para gerenciar disciplinas
   const [disciplinas, setDisciplinas] = useState<Disciplina[]>([]);
@@ -168,6 +179,7 @@ export default function EditarTurmaPage() {
             intervaloObrigatorio: turma.configuracoes?.intervaloObrigatorioAposAulas?.toString() || "",
           });
           setSelectedDias(turma.configuracoes?.diasLetivos || turma.diasLetivos || []);
+          setSelectedNiveis(turma.nivelEnsino || []);
 
           // Carregar disciplinas da turma
           if (turma.disciplinas && Array.isArray(turma.disciplinas)) {
@@ -252,6 +264,12 @@ export default function EditarTurmaPage() {
   const toggleDia = (dia: DiaSemana) => {
     setSelectedDias((prev) =>
       prev.includes(dia) ? prev.filter((d) => d !== dia) : [...prev, dia]
+    );
+  };
+
+  const toggleNivel = (nivel: NivelEnsino) => {
+    setSelectedNiveis((prev) =>
+      prev.includes(nivel) ? prev.filter((n) => n !== nivel) : [...prev, nivel]
     );
   };
 
@@ -437,6 +455,7 @@ export default function EditarTurmaPage() {
         anoLetivo: data.anoLetivo ? parseInt(data.anoLetivo) : undefined,
         professorResponsavel: data.professorResponsavel || undefined,
         diasLetivos: selectedDias.length > 0 ? selectedDias : undefined,
+        nivelEnsino: selectedNiveis.length > 0 ? selectedNiveis : undefined,
       };
 
       // Se a série foi alterada, atualiza série e ano
@@ -570,6 +589,26 @@ export default function EditarTurmaPage() {
                     {errors.serie.message}
                   </p>
                 )}
+              </div>
+
+              <div>
+                <Label>Nível de Ensino (selecione um ou mais)</Label>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {nivelEnsinoOptions.map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => toggleNivel(option.value)}
+                      className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
+                        selectedNiveis.includes(option.value)
+                          ? "bg-brand-500 text-white"
+                          : "bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div>
@@ -812,7 +851,7 @@ export default function EditarTurmaPage() {
                 />
               </div>
               <div>
-                <Label>Intervalo Obrigatório (após X aulas)</Label>
+                <Label>Início do intervalo (após a Xª aula)</Label>
                 <Input
                   type="number"
                   placeholder="Ex: 3"

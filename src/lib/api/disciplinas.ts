@@ -11,10 +11,10 @@ export interface Disciplina {
   _id: string;
   nome: string;
   codigo: string;
-  cargaHoraria: number;
+  cargaHoraria?: number;
   cor?: string;
   descricao?: string;
-  tipo: TipoDisciplina;
+  tipo?: TipoDisciplina;
   requerSequencia?: boolean;
   restricoesPeriodo?: RestricaoPeriodo[];
   salaEspecifica?: string;
@@ -82,7 +82,7 @@ export const listDisciplinas = async (
 export interface CreateDisciplinaData {
   nome: string; // 2-100 caracteres
   codigo: string; // 2-20 caracteres, A-Z/0-9
-  cargaHoraria: number; // > 0
+  cargaHoraria?: number; // > 0
   cor?: string; // formato #hex
   descricao?: string; // <= 500 caracteres
   tipo?: TipoDisciplina; // default: 'regular'

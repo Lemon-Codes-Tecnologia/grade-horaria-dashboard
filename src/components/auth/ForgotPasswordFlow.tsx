@@ -244,7 +244,7 @@ const resetSchema = z
 
 type ResetFormData = z.infer<typeof resetSchema>;
 
-export function ForgotPasswordResetStep({ email, code }: { email: string; code: string }) {
+export function ForgotPasswordResetStep({ email }: { email: string }) {
   const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -261,8 +261,7 @@ export function ForgotPasswordResetStep({ email, code }: { email: string; code: 
     try {
       const response = await resetPassword({
         email,
-        password: data.password,
-        code,
+        pass: data.password,
       });
 
       if (response) {
@@ -369,7 +368,6 @@ export function ForgotPasswordResetStep({ email, code }: { email: string; code: 
 export default function ForgotPasswordFlow() {
   const [step, setStep] = useState<"email" | "code" | "reset">("email");
   const [email, setEmail] = useState("");
-  const [code, setCode] = useState("");
 
   const handleEmailNext = (emailValue: string) => {
     setEmail(emailValue);
@@ -377,7 +375,6 @@ export default function ForgotPasswordFlow() {
   };
 
   const handleCodeNext = (codeValue: string) => {
-    setCode(codeValue);
     setStep("reset");
   };
 
@@ -399,5 +396,5 @@ export default function ForgotPasswordFlow() {
     );
   }
 
-  return <ForgotPasswordResetStep email={email} code={code} />;
+  return <ForgotPasswordResetStep email={email} />;
 }

@@ -10,7 +10,15 @@ import Label from "@/components/form/Label";
 import Button from "@/components/ui/button/Button";
 import { ChevronLeftIcon } from "@/icons";
 import Link from "next/link";
-import { createEscola, type TipoEscola, type NivelEnsino, type DiaSemana, type Turno } from "@/lib/api/escolas";
+import {
+  createEscola,
+  type TipoEscola,
+  type NivelEnsino,
+  type DiaSemana,
+  type Turno,
+  type HorariosDisponiveisPorNivelTurno,
+  type HorarioTurno,
+} from "@/lib/api/escolas";
 import { listUFs, listCidadesByUF, type UF, type Cidade } from "@/lib/api/localizacao";
 
 // Validation schema matching backend CreateEscolaData
@@ -79,7 +87,7 @@ export default function CriarInstituicaoPage() {
   const [selectedNiveis, setSelectedNiveis] = useState<NivelEnsino[]>([]);
   const [selectedDias, setSelectedDias] = useState<DiaSemana[]>([]);
   const [selectedTurnos, setSelectedTurnos] = useState<Turno[]>([]);
-  const [horariosDisponiveis, setHorariosDisponiveis] = useState<any>({});
+  const [horariosDisponiveis, setHorariosDisponiveis] = useState<HorariosDisponiveisPorNivelTurno>({});
   const [ufs, setUfs] = useState<UF[]>([]);
   const [cidades, setCidades] = useState<Cidade[]>([]);
   const [loadingUFs, setLoadingUFs] = useState(true);
@@ -161,9 +169,29 @@ export default function CriarInstituicaoPage() {
   }, [ufValue, selectedUF, setValue]);
 
   const toggleNivel = (nivel: NivelEnsino) => {
-    setSelectedNiveis((prev) =>
-      prev.includes(nivel) ? prev.filter((n) => n !== nivel) : [...prev, nivel]
-    );
+    setSelectedNiveis((prev) => {
+      const isSelected = prev.includes(nivel);
+      if (isSelected) {
+        setHorariosDisponiveis((current) => {
+          const next = { ...current };
+          delete next[nivel];
+          return next;
+        });
+        return prev.filter((n) => n !== nivel);
+      }
+
+      setHorariosDisponiveis((current) => {
+        const next = { ...current };
+        if (!next[nivel]) {
+          next[nivel] = {};
+        }
+        selectedTurnos.forEach((turno) => {
+          next[nivel]![turno] = getDefaultHorario(turno);
+        });
+        return next;
+      });
+      return [...prev, nivel];
+    });
   };
 
   const toggleDia = (dia: DiaSemana) => {
@@ -172,46 +200,72 @@ export default function CriarInstituicaoPage() {
     );
   };
 
+  const getDefaultHorario = (turno: Turno): HorarioTurno => {
+    const defaults: Record<Turno, HorarioTurno> = {
+      manha: { inicio: "07:00", fim: "12:00", duracaoAula: 50, intervalo: 15 },
+      tarde: { inicio: "13:00", fim: "18:00", duracaoAula: 50, intervalo: 15 },
+      noite: { inicio: "19:00", fim: "23:00", duracaoAula: 45, intervalo: 15 },
+    };
+    return defaults[turno];
+  };
+
   const toggleTurno = (turno: Turno) => {
     setSelectedTurnos((prev) => {
       const isSelected = prev.includes(turno);
       if (isSelected) {
-        // Remove o turno e seus horários
-        const newHorarios = { ...horariosDisponiveis };
-        delete newHorarios[turno];
-        setHorariosDisponiveis(newHorarios);
+        // Remove o turno de todos os níveis
+        setHorariosDisponiveis((current) => {
+          const next: HorariosDisponiveisPorNivelTurno = { ...current };
+          Object.keys(next).forEach((nivel) => {
+            if (next[nivel as NivelEnsino]) {
+              const nivelTurnos = { ...next[nivel as NivelEnsino] };
+              delete nivelTurnos[turno];
+              next[nivel as NivelEnsino] = nivelTurnos;
+            }
+          });
+          return next;
+        });
         return prev.filter((t) => t !== turno);
       } else {
-        // Adiciona o turno com horários padrão
-        const horariosDefault = {
-          manha: { inicio: "07:00", fim: "12:00", duracaoAula: 50, intervalo: 15 },
-          tarde: { inicio: "13:00", fim: "18:00", duracaoAula: 50, intervalo: 15 },
-          noite: { inicio: "19:00", fim: "23:00", duracaoAula: 45, intervalo: 15 },
-        };
-        setHorariosDisponiveis({
-          ...horariosDisponiveis,
-          [turno]: horariosDefault[turno],
+        // Adiciona o turno em todos os níveis selecionados
+        setHorariosDisponiveis((current) => {
+          const next: HorariosDisponiveisPorNivelTurno = { ...current };
+          selectedNiveis.forEach((nivel) => {
+            next[nivel] = {
+              ...(next[nivel] || {}),
+              [turno]: getDefaultHorario(turno),
+            };
+          });
+          return next;
         });
         return [...prev, turno];
       }
     });
   };
 
-  const updateHorario = (turno: Turno, field: string, value: string | number) => {
-    setHorariosDisponiveis((prev: any) => ({
+  const updateHorario = (
+    nivel: NivelEnsino,
+    turno: Turno,
+    field: keyof HorarioTurno,
+    value: string | number
+  ) => {
+    setHorariosDisponiveis((prev) => ({
       ...prev,
-      [turno]: {
-        ...prev[turno],
-        [field]: value,
+      [nivel]: {
+        ...(prev[nivel] || {}),
+        [turno]: {
+          ...(prev[nivel]?.[turno] || getDefaultHorario(turno)),
+          [field]: value,
+        },
       },
     }));
   };
 
   const validateHorariosDisponiveis = () => {
-    if (selectedTurnos.length === 0) {
+    if (selectedTurnos.length === 0 || selectedNiveis.length === 0) {
       return {
         valid: false,
-        message: "Selecione pelo menos um turno e preencha os horários disponíveis.",
+        message: "Selecione pelo menos um nível e um turno e preencha os horários disponíveis.",
       };
     }
 
@@ -222,29 +276,32 @@ export default function CriarInstituicaoPage() {
       intervalo: "Intervalo",
     };
 
-    for (const turno of selectedTurnos) {
-      const horario = horariosDisponiveis?.[turno];
-      const turnoLabel = turnoOptions.find((option) => option.value === turno)?.label || turno;
+    for (const nivel of selectedNiveis) {
+      const nivelLabel = nivelEnsinoOptions.find((option) => option.value === nivel)?.label || nivel;
+      for (const turno of selectedTurnos) {
+        const horario = horariosDisponiveis?.[nivel]?.[turno];
+        const turnoLabel = turnoOptions.find((option) => option.value === turno)?.label || turno;
 
-      if (!horario) {
-        return { valid: false, message: `Preencha os horários do turno ${turnoLabel}.` };
-      }
-
-      const missingFields = Object.keys(fieldLabels).filter((field) => {
-        if (field === "duracaoAula" || field === "intervalo") {
-          const value = Number(horario[field]);
-          return !Number.isFinite(value) || value <= 0;
+        if (!horario) {
+          return { valid: false, message: `Preencha os horários de ${nivelLabel} no turno ${turnoLabel}.` };
         }
 
-        return !String(horario[field] || "").trim();
-      });
+        const missingFields = Object.keys(fieldLabels).filter((field) => {
+          if (field === "duracaoAula" || field === "intervalo") {
+            const value = Number(horario[field as keyof HorarioTurno]);
+            return !Number.isFinite(value) || value <= 0;
+          }
 
-      if (missingFields.length > 0) {
-        const missingLabels = missingFields.map((field) => fieldLabels[field]).join(", ");
-        return {
-          valid: false,
-          message: `Preencha ${missingLabels} no turno ${turnoLabel}.`,
-        };
+          return !String(horario[field as keyof HorarioTurno] || "").trim();
+        });
+
+        if (missingFields.length > 0) {
+          const missingLabels = missingFields.map((field) => fieldLabels[field]).join(", ");
+          return {
+            valid: false,
+            message: `Preencha ${missingLabels} para ${nivelLabel} no turno ${turnoLabel}.`,
+          };
+        }
       }
     }
 
@@ -284,10 +341,22 @@ export default function CriarInstituicaoPage() {
 
     setIsSubmitting(true);
     try {
-      // Filtra horariosDisponiveis para incluir apenas os turnos selecionados
-      const horariosFiltered = horariosDisponiveis && Object.keys(horariosDisponiveis).length > 0
-        ? horariosDisponiveis
-        : undefined;
+      const horariosFiltered =
+        selectedNiveis.length > 0 && selectedTurnos.length > 0
+          ? selectedNiveis.reduce<HorariosDisponiveisPorNivelTurno>((acc, nivel) => {
+              const turnos: Partial<Record<Turno, HorarioTurno>> = {};
+              selectedTurnos.forEach((turno) => {
+                const horario = horariosDisponiveis?.[nivel]?.[turno];
+                if (horario) {
+                  turnos[turno] = horario;
+                }
+              });
+              if (Object.keys(turnos).length > 0) {
+                acc[nivel] = turnos;
+              }
+              return acc;
+            }, {})
+          : undefined;
 
       const payload = {
         nome: data.nome,
@@ -577,62 +646,88 @@ export default function CriarInstituicaoPage() {
               </div>
             </div>
 
-            {/* Configuração de Horários por Turno */}
-            {selectedTurnos.length > 0 && (
-              <div className="mt-6 space-y-4">
-                <Label>Configuração de Horários</Label>
-                {selectedTurnos.map((turno) => (
+            {/* Configuração de Horários por Nível e Turno */}
+            <div className="mt-6 space-y-4">
+              <Label>Configuração de Horários</Label>
+              {selectedNiveis.length === 0 || selectedTurnos.length === 0 ? (
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Selecione ao menos um nível e um turno para configurar os horários.
+                </p>
+              ) : (
+                selectedNiveis.map((nivel) => (
                   <div
-                    key={turno}
-                    className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-800/50"
+                    key={nivel}
+                    className="rounded-lg border border-gray-200 p-4 dark:border-gray-800"
                   >
-                    <h3 className="mb-3 text-sm font-medium text-gray-800 dark:text-white/90">
-                      {turnoOptions.find((t) => t.value === turno)?.label}
+                    <h3 className="mb-3 text-sm font-semibold text-gray-800 dark:text-white/90">
+                      {nivelEnsinoOptions.find((n) => n.value === nivel)?.label || nivel}
                     </h3>
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-                      <div>
-                        <Label>Início</Label>
-                        <Input
-                          type="time"
-                          value={horariosDisponiveis?.[turno]?.inicio || ""}
-                          onChange={(e) => updateHorario(turno, "inicio", e.target.value)}
-                        />
-                      </div>
-                      <div>
-                        <Label>Fim</Label>
-                        <Input
-                          type="time"
-                          value={horariosDisponiveis?.[turno]?.fim || ""}
-                          onChange={(e) => updateHorario(turno, "fim", e.target.value)}
-                        />
-                      </div>
-                      <div>
-                        <Label>Duração da Aula (min)</Label>
-                        <Input
-                          type="number"
-                          placeholder="50"
-                          value={horariosDisponiveis?.[turno]?.duracaoAula || ""}
-                          onChange={(e) =>
-                            updateHorario(turno, "duracaoAula", parseInt(e.target.value) || 0)
-                          }
-                        />
-                      </div>
-                      <div>
-                        <Label>Intervalo (min)</Label>
-                        <Input
-                          type="number"
-                          placeholder="15"
-                          value={horariosDisponiveis?.[turno]?.intervalo || ""}
-                          onChange={(e) =>
-                            updateHorario(turno, "intervalo", parseInt(e.target.value) || 0)
-                          }
-                        />
-                      </div>
+                    <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                      {selectedTurnos.map((turno) => (
+                        <div
+                          key={`${nivel}-${turno}`}
+                          className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-800/50"
+                        >
+                          <h4 className="mb-3 text-sm font-medium text-gray-800 dark:text-white/90">
+                            {turnoOptions.find((t) => t.value === turno)?.label}
+                          </h4>
+                          <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+                            <div>
+                              <Label>Início</Label>
+                              <Input
+                                type="time"
+                                value={horariosDisponiveis?.[nivel]?.[turno]?.inicio || ""}
+                                onChange={(e) => updateHorario(nivel, turno, "inicio", e.target.value)}
+                              />
+                            </div>
+                            <div>
+                              <Label>Fim</Label>
+                              <Input
+                                type="time"
+                                value={horariosDisponiveis?.[nivel]?.[turno]?.fim || ""}
+                                onChange={(e) => updateHorario(nivel, turno, "fim", e.target.value)}
+                              />
+                            </div>
+                            <div>
+                              <Label>Duração da Aula (min)</Label>
+                              <Input
+                                type="number"
+                                placeholder="50"
+                                value={horariosDisponiveis?.[nivel]?.[turno]?.duracaoAula || ""}
+                                onChange={(e) =>
+                                  updateHorario(
+                                    nivel,
+                                    turno,
+                                    "duracaoAula",
+                                    parseInt(e.target.value) || 0
+                                  )
+                                }
+                              />
+                            </div>
+                            <div>
+                              <Label>Intervalo (min)</Label>
+                              <Input
+                                type="number"
+                                placeholder="15"
+                                value={horariosDisponiveis?.[nivel]?.[turno]?.intervalo || ""}
+                                onChange={(e) =>
+                                  updateHorario(
+                                    nivel,
+                                    turno,
+                                    "intervalo",
+                                    parseInt(e.target.value) || 0
+                                  )
+                                }
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
+                ))
+              )}
+            </div>
           </div>
 
           {/* Endereço */}

@@ -65,7 +65,7 @@ export default function SignUpForm() {
   //     setIsCheckingEmail(true);
   //     try {
   //       const response = await validateEmail({ email: emailValue });
-  //       if (!response.payload?.available) {
+  //       if (response.payload?.hasEmail) {
   //         setError("email", {
   //           type: "manual",
   //           message: "Este e-mail já está cadastrado",

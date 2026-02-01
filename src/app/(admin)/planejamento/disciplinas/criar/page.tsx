@@ -10,10 +10,7 @@ import Label from "@/components/form/Label";
 import Button from "@/components/ui/button/Button";
 import { ChevronLeftIcon } from "@/icons";
 import Link from "next/link";
-import {
-  createDisciplina,
-  type TipoDisciplina,
-} from "@/lib/api/disciplinas";
+import { createDisciplina } from "@/lib/api/disciplinas";
 import { useSchool } from "@/context/SchoolContext";
 
 // Validation schema matching backend CreateDisciplinaData
@@ -27,40 +24,16 @@ const disciplinaSchema = z.object({
     .min(2, "Código deve ter pelo menos 2 caracteres")
     .max(20, "Código deve ter no máximo 20 caracteres")
     .regex(/^[A-Z0-9]+$/, "Código deve conter apenas letras maiúsculas e números"),
-  cargaHoraria: z
-    .number()
-    .min(1, "Carga horária deve ser maior que 0")
-    .or(
-      z
-        .string()
-        .transform((val) => parseInt(val, 10))
-        .refine((val) => !isNaN(val) && val > 0, "Carga horária deve ser maior que 0")
-    ),
   cor: z
     .string()
     .regex(/^#([0-9A-F]{3}|[0-9A-F]{6})$/i, "Cor deve estar no formato #RGB ou #RRGGBB")
     .optional()
     .or(z.literal("")),
-  descricao: z
-    .string()
-    .max(500, "Descrição deve ter no máximo 500 caracteres")
-    .optional()
-    .or(z.literal("")),
-  tipo: z.enum(["regular", "laboratorio", "educacao_fisica", "arte"], {
-    message: "Tipo de disciplina é obrigatório",
-  }),
-  salaEspecifica: z.string().optional().or(z.literal("")),
 });
 
 type DisciplinaFormData = z.infer<typeof disciplinaSchema>;
 const disciplinaResolver = zodResolver(disciplinaSchema) as Resolver<DisciplinaFormData>;
 
-const tipoDisciplinaOptions: { value: TipoDisciplina; label: string }[] = [
-  { value: "regular", label: "Regular" },
-  { value: "laboratorio", label: "Laboratório" },
-  { value: "educacao_fisica", label: "Educação Física" },
-  { value: "arte", label: "Arte" },
-];
 
 export default function CriarDisciplinaPage() {
   const router = useRouter();
@@ -78,11 +51,7 @@ export default function CriarDisciplinaPage() {
     defaultValues: {
       nome: "",
       codigo: "",
-      cargaHoraria: "" as any,
-      tipo: "regular",
       cor: "#007bff",
-      descricao: "",
-      salaEspecifica: "",
     },
   });
 
@@ -101,13 +70,7 @@ export default function CriarDisciplinaPage() {
         {
           nome: data.nome,
           codigo: data.codigo.toUpperCase(), // Garante que o código está em maiúsculas
-          cargaHoraria: typeof data.cargaHoraria === "string"
-            ? parseInt(data.cargaHoraria, 10)
-            : data.cargaHoraria,
           cor: data.cor || undefined,
-          descricao: data.descricao || undefined,
-          tipo: data.tipo,
-          salaEspecifica: data.salaEspecifica || undefined,
         },
         selectedSchool._id // ID da escola selecionada
       );
@@ -201,43 +164,7 @@ export default function CriarDisciplinaPage() {
                 </p>
               </div>
 
-              <div>
-                <Label>
-                  Carga Horária (horas/semana) <span className="text-error-500">*</span>
-                </Label>
-                <Input
-                  type="number"
-                  placeholder="40"
-                  {...register("cargaHoraria")}
-                  error={errors.cargaHoraria?.message}
-                  min={1}
-                />
-              </div>
 
-              <div>
-                <Label>
-                  Tipo de Disciplina <span className="text-error-500">*</span>
-                </Label>
-                <Controller
-                  name="tipo"
-                  control={control}
-                  render={({ field }) => (
-                    <select
-                      {...field}
-                      className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-700 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300"
-                    >
-                      {tipoDisciplinaOptions.map((option) => (
-                        <option key={option.value} value={option.value}>
-                          {option.label}
-                        </option>
-                      ))}
-                    </select>
-                  )}
-                />
-                {errors.tipo && (
-                  <p className="mt-1 text-xs text-error-500">{errors.tipo.message}</p>
-                )}
-              </div>
 
               <div>
                 <Label>Cor da Disciplina</Label>
@@ -275,44 +202,9 @@ export default function CriarDisciplinaPage() {
                 )}
               </div>
 
-              <div className="md:col-span-2">
-                <Label>Descrição</Label>
-                <textarea
-                  placeholder="Descrição da disciplina (opcional)"
-                  {...register("descricao")}
-                  className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-700 placeholder-gray-400 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300 dark:placeholder-gray-500"
-                  rows={3}
-                  maxLength={500}
-                />
-                {errors.descricao && (
-                  <p className="mt-1 text-xs text-error-500">{errors.descricao.message}</p>
-                )}
-              </div>
             </div>
           </div>
 
-          {/* Configurações Avançadas */}
-          <div>
-            <h2 className="mb-4 text-lg font-medium text-gray-800 dark:text-white/90">
-              Configurações Avançadas
-            </h2>
-
-            <div className="space-y-4">
-              {/* Sala Específica */}
-              <div>
-                <Label>Sala Específica</Label>
-                <Input
-                  type="text"
-                  placeholder="Ex: Laboratório de Química, Quadra Poliesportiva"
-                  {...register("salaEspecifica")}
-                  error={errors.salaEspecifica?.message}
-                />
-                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  Informe se a disciplina requer uma sala específica
-                </p>
-              </div>
-            </div>
-          </div>
 
           {/* Form Actions */}
           <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-800">

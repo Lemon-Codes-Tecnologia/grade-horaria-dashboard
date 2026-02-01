@@ -1,84 +1,45 @@
 "use client";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Button from "@/components/ui/button/Button";
+import { listPlanos, type Plano } from "@/lib/api/planos";
+import { createStripeCheckoutSession } from "@/lib/api/pagamentos";
+import { useAuth } from "@/context/AuthContext";
+import { useSchool } from "@/context/SchoolContext";
+import { toast } from "sonner";
 
 type PlanType = "anual";
 
-interface Plan {
-  id: string;
-  name: string;
-  description: string;
-  monthlyPrice: number;
-  yearlyPrice: number;
-  maxTurmas?: string;
-  features: string[];
-  popular?: boolean;
-  color: string;
-}
-
-const plans: Plan[] = [
-  {
-    id: "essencial",
-    name: "Essencial",
-    description: "Ideal para escolas pequenas",
-    monthlyPrice: 49.90,
-    yearlyPrice: 499,
-    color: "gray",
-    features: [
-      "Até 10 turmas",
-      "App para professor",
-      "Criação e edição de grades",
-      "Exportação da grade em PDF",
-      "Cadastro de professores, alunos e responsáveis",
-      "Avisos por turma",
-      "Mural básico (apenas texto)",
-      "2 GB incluídos para armazenamento de arquivos no mural (R$ 99,00/ano por pacote extra de 10 GB " +
-      "ou R$ 299/ano por 50 GB, após atingir o limite)",
-      "Suporte básico por e-mail com prazo de resposta de até 24h úteis",
-    ],
-  },
-  {
-    id: "avancado",
-    name: "Avançado",
-    description: "Para escolas em crescimento",
-    monthlyPrice: 99.90,
-    yearlyPrice: 999,
-    popular: true,
-    color: "brand",
-    features: [
-      "Até 30 turmas",
-      "Tudo do plano Essencial",
-      "Troca de aulas completa (solicitação, aprovações e atualização automática)",
-      "Mural avançado (pode anexar imagens e PDFs)",
-      "20 GB incluídos para armazenamento de arquivos no mural (R$ 99,00/ano por pacote extra de 10 GB" +
-      " ou R$ 299/ano por 50 GB, após atingir o limite)",
-      // "Diário de classe (presença) – avançado",
-      // "Relatórios de presença, carga horária e trocas",
-      "Suporte básico por e-mail com prazo de resposta de até 8h úteis",
-    ],
-  },
-  {
-    id: "premium",
-    name: "Premium",
-    description: "Solução completa para grandes escolas",
-    monthlyPrice: 199.90,
-    yearlyPrice: 1999,
-    color: "purple",
-    features: [
-      "Turmas ilimitadas",
-      "App para professor, alunos e pais",
-      "Tudo do plano Avançado",
-      "100 GB incluídos para armazenamento de arquivos no mural (R$ 99,00/ano por pacote extra de 10 GB" +
-      " ou R$ 299/ano por 50 GB, após atingir o limite)",
-      "Módulos premium futuros incluídos",
-      "Customizações de grades (escolha de tema, cores)",
-      "SLA e suporte dedicado e especializado via chat",
-    ],
-  },
-];
-
 export default function AssinaturasPage() {
   const billingPeriod: PlanType = "anual";
+  const [plans, setPlans] = useState<Plano[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [submittingPlanId, setSubmittingPlanId] = useState<string | null>(null);
+  const { user } = useAuth();
+  const { selectedSchool } = useSchool();
+
+  const fetchPlans = async () => {
+    setIsLoading(true);
+    setErrorMessage(null);
+    try {
+      const response = await listPlanos();
+      const payload = response.payload || response.data || [];
+      const activePlans = payload.filter((plan) => plan.isActive);
+      setPlans(activePlans);
+    } catch (error: any) {
+      setErrorMessage(
+        error?.response?.data?.message ||
+          "Não foi possível carregar os planos no momento."
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPlans();
+  }, []);
+
 
   const getColorClasses = (color: string, variant: "bg" | "border" | "text" | "badge") => {
     const colorMap: Record<string, Record<string, string>> = {
@@ -104,12 +65,173 @@ export default function AssinaturasPage() {
     return colorMap[color]?.[variant] || colorMap.gray[variant];
   };
 
-  const formatPrice = (plan: Plan) => {
-    const price = billingPeriod === "anual" ? plan.yearlyPrice : plan.monthlyPrice;
+  const normalizePriceToNumber = (value: string) => {
+    const cleaned = value.replace(/\s/g, "").replace(/[^\d,.-]/g, "");
+    if (!cleaned) return null;
+    const normalized = cleaned.includes(",") && cleaned.includes(".")
+      ? cleaned.replace(/\./g, "").replace(",", ".")
+      : cleaned.replace(",", ".");
+    const parsed = Number.parseFloat(normalized);
+    return Number.isFinite(parsed) ? parsed : null;
+  };
+
+  const formatPriceValue = (value?: string, currency?: string) => {
+    if (!value) return "-";
+    const numeric = normalizePriceToNumber(value);
+    if (numeric === null) return value;
     return new Intl.NumberFormat("pt-BR", {
       style: "currency",
-      currency: "BRL",
-    }).format(price);
+      currency: currency && currency.length === 3 ? currency : "BRL",
+    }).format(numeric);
+  };
+
+  const getPlanColor = (plan: Plano) => {
+    if (plan.type === "premium") return "purple";
+    if (plan.type === "avancado") return "brand";
+    return "gray";
+  };
+
+  const isPopularPlan = (plan: Plano) => {
+    return plan.type === "avancado";
+  };
+
+  const getYearlyPricing = (plan: Plano) => {
+    const promo = plan.promotionalPriceYear?.trim();
+    const hasPromo = Boolean(promo);
+    return {
+      main: hasPromo ? promo : plan.yearlyPrice,
+      original: hasPromo ? plan.yearlyPrice : undefined,
+      promoText: hasPromo ? plan.promotionalTextYear : undefined,
+    };
+  };
+
+  const parsePriceValue = (value?: string) => {
+    if (!value) return Number.POSITIVE_INFINITY;
+    const cleaned = value.replace(/\s/g, "").replace(/[^\d,.-]/g, "");
+    if (!cleaned) return Number.POSITIVE_INFINITY;
+    const normalized = cleaned.includes(",") && cleaned.includes(".")
+      ? cleaned.replace(/\./g, "").replace(",", ".")
+      : cleaned.replace(",", ".");
+    const parsed = Number.parseFloat(normalized);
+    return Number.isFinite(parsed) ? parsed : Number.POSITIVE_INFINITY;
+  };
+
+  const getSortValue = (plan: Plano) => {
+    const promo = plan.promotionalPriceYear?.trim();
+    return promo ? parsePriceValue(promo) : parsePriceValue(plan.yearlyPrice);
+  };
+
+  const displayPlans = [...plans].sort((a, b) => getSortValue(a) - getSortValue(b));
+
+  const getPlanoId = (plan: Plano) => {
+    if (typeof plan._id === "string") return plan._id;
+    return plan._id?.$oid || "";
+  };
+
+  const resolveStripePriceId = (plan: Plano) => {
+    return plan.srtipePriceId || "";
+  };
+
+  const handleSubscribe = async (plan: Plano) => {
+    if (!user?.email) {
+      toast.error("Usuário sem e-mail", {
+        description: "Não foi possível identificar o e-mail do pagador.",
+      });
+      return;
+    }
+
+    if (!selectedSchool) {
+      toast.error("Nenhuma escola selecionada", {
+        description: "Selecione uma escola para continuar.",
+      });
+      return;
+    }
+
+    const stripePriceId = resolveStripePriceId(plan);
+    if (!stripePriceId) {
+      toast.error("Plano sem preço Stripe", {
+        description:
+          "Não foi possível identificar o srtipe_price_id para este checkout.",
+      });
+      return;
+    }
+
+    const { endereco } = selectedSchool;
+    const missingFields: string[] = [];
+
+    if (!selectedSchool.cnpj) missingFields.push("CNPJ");
+    if (!endereco?.cidade) missingFields.push("Cidade");
+    if (!endereco?.uf) missingFields.push("UF");
+
+    if (missingFields.length > 0) {
+      toast.error("Dados da escola incompletos", {
+        description: `Preencha: ${missingFields.join(", ")}.`,
+      });
+      return;
+    }
+
+    const planoId = getPlanoId(plan);
+    setSubmittingPlanId(planoId);
+    try {
+      const response = await createStripeCheckoutSession({
+        srtipe_price_id: stripePriceId,
+        plan_id: planoId,
+        payer_email: user.email,
+        dados_escola: {
+          email: selectedSchool.contato?.email || user.email,
+          cnpj: selectedSchool.cnpj,
+          endereco: {
+            cep: endereco?.cep,
+            logradouro: endereco?.logradouro,
+            numero: endereco?.numero,
+            bairro: endereco?.bairro,
+            cidade: endereco?.cidade,
+            uf: endereco?.uf,
+          },
+        },
+        escola_id: selectedSchool._id,
+        success_url: `${window.location.origin}/financeiro/assinaturas/sucesso?success=true&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${window.location.origin}/financeiro/assinaturas/sucesso?canceled=true`,
+      });
+
+      const payload = response.data || response.payload || response;
+      const checkoutUrl =
+        payload?.session?.url ||
+        payload?.url ||
+        payload?.data?.session?.url ||
+        payload?.data?.url ||
+        payload?.payload?.session?.url ||
+        payload?.payload?.url ||
+        (payload?.data as any)?.data?.session?.url ||
+        (payload?.data as any)?.data?.url;
+      const assinaturaId =
+        payload?.assinatura_id ||
+        payload?.session?.metadata?.assinatura_id ||
+        payload?.metadata?.assinatura_id ||
+        payload?.data?.assinatura_id ||
+        payload?.data?.session?.metadata?.assinatura_id ||
+        payload?.payload?.assinatura_id ||
+        (payload?.payload as any)?.session?.metadata?.assinatura_id;
+      if (!checkoutUrl) {
+        console.error("Checkout URL ausente. Payload recebido:", payload);
+        throw new Error("Link de checkout não retornado.");
+      }
+
+      if (assinaturaId) {
+        sessionStorage.setItem("stripe_assinatura_id", assinaturaId);
+      }
+
+      window.location.href = checkoutUrl;
+    } catch (error: any) {
+      toast.error("Erro ao iniciar assinatura", {
+        description:
+          error?.response?.data?.message ||
+          error?.message ||
+          "Não foi possível iniciar a assinatura.",
+      });
+    } finally {
+      setSubmittingPlanId(null);
+    }
   };
 
   return (
@@ -126,85 +248,122 @@ export default function AssinaturasPage() {
 
       {/* Plans Grid */}
       <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {plans.map((plan) => (
-          <div
-            key={plan.id}
-            className={`relative rounded-xl border-2 bg-white p-6 transition-shadow hover:shadow-lg dark:bg-gray-900 ${
-              plan.popular
-                ? getColorClasses(plan.color, "border")
-                : "border-gray-200 dark:border-gray-800"
-            } ${plan.popular ? "shadow-md" : ""}`}
-          >
-            {/* Popular Badge */}
-            {plan.popular && (
-              <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                <span className={`rounded-full px-4 py-1 text-xs font-semibold ${getColorClasses(plan.color, "badge")}`}>
-                  Mais Popular
-                </span>
-              </div>
-            )}
-
-            {/* Plan Header */}
-            <div className="mb-6">
-              <h3 className="text-2xl font-bold text-gray-800 dark:text-white">
-                {plan.name}
-              </h3>
-              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                {plan.description}
-              </p>
-            </div>
-
-            {/* Price */}
-            <div className="mb-6">
-              <div className="flex items-baseline gap-1">
-                <span className="text-4xl font-bold text-gray-900 dark:text-white">
-                  {formatPrice(plan)}
-                </span>
-                <span className="text-gray-500 dark:text-gray-400">
-                  /{billingPeriod === "anual" ? "ano" : "mês"}
-                </span>
-              </div>
-              <p className="mt-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-                {plan.maxTurmas}
-              </p>
-            </div>
-
-            {/* Features */}
-            <ul className="mb-6 space-y-3">
-              {plan.features.map((feature, index) => (
-                <li key={index} className="flex items-start gap-3">
-                  <svg
-                    className="mt-0.5 h-5 w-5 flex-shrink-0 text-green-500"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M5 13l4 4L19 7"
-                    />
-                  </svg>
-                  <span className="text-sm text-gray-600 dark:text-gray-400">
-                    {feature}
-                  </span>
-                </li>
-              ))}
-            </ul>
-
-            {/* CTA Button */}
-            <Button
-              className={`w-full ${
-                plan.popular
-                  ? ""
-                  : "!bg-gray-100 !text-gray-700 hover:!bg-brand-500 hover:!text-white dark:!bg-gray-800 dark:!text-gray-300 dark:hover:!bg-brand-500 dark:hover:!text-white"
-              }`}
-            >
-              {plan.popular ? "Escolher Plano" : "Escolher Plano"}
-            </Button>
+        {isLoading && (
+          <div className="col-span-full text-center text-sm text-gray-500 dark:text-gray-400">
+            Carregando planos...
           </div>
-        ))}
+        )}
+        {!isLoading && errorMessage && (
+          <div className="col-span-full text-center text-sm text-red-600 dark:text-red-400">
+            {errorMessage}
+          </div>
+        )}
+        {!isLoading && !errorMessage && displayPlans.length === 0 && (
+          <div className="col-span-full text-center text-sm text-gray-500 dark:text-gray-400">
+            Nenhum plano ativo encontrado.
+          </div>
+        )}
+        {!isLoading && !errorMessage && displayPlans.map((plan) => {
+          const color = getPlanColor(plan);
+          const popular = isPopularPlan(plan);
+          const pricing = getYearlyPricing(plan);
+          const planoId = getPlanoId(plan);
+
+          return (
+            <div
+              key={planoId}
+              className={`relative flex h-full flex-col rounded-xl border-2 bg-white p-6 transition-shadow hover:shadow-lg dark:bg-gray-900 ${
+                popular
+                  ? getColorClasses(color, "border")
+                  : "border-gray-200 dark:border-gray-800"
+              } ${popular ? "shadow-md" : ""}`}
+            >
+              {/* Popular Badge */}
+              {popular && (
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                  <span className={`rounded-full px-4 py-1 text-xs font-semibold ${getColorClasses(color, "badge")}`}>
+                    Mais Popular
+                  </span>
+                </div>
+              )}
+
+              {/* Plan Header */}
+              <div className="mb-6">
+                <h3 className="text-2xl font-bold text-gray-800 dark:text-white">
+                  {plan.name}
+                </h3>
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                  {plan.description}
+                </p>
+              </div>
+
+              {/* Price */}
+              <div className="mb-6">
+                <div className="flex items-baseline gap-1">
+                  <span className="text-4xl font-bold text-gray-900 dark:text-white">
+                    {formatPriceValue(pricing.main, plan.currency)}
+                  </span>
+                  <span className="text-gray-500 dark:text-gray-400">
+                    /{billingPeriod === "anual" ? "ano" : "mês"}
+                  </span>
+                </div>
+                {pricing.original && (
+                  <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                    De{" "}
+                    <span className="line-through">
+                      {formatPriceValue(pricing.original, plan.currency)}
+                    </span>
+                  </p>
+                )}
+                {pricing.promoText && (
+                  <p className="mt-1 text-sm font-medium text-brand-600 dark:text-brand-400">
+                    {pricing.promoText}
+                  </p>
+                )}
+                <p className="mt-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {plan.subcardText}
+                </p>
+              </div>
+
+              {/* Features */}
+              <ul className="mb-6 flex-1 space-y-3">
+                {plan.features?.map((feature, index) => (
+                  <li key={index} className="flex items-start gap-3">
+                    <svg
+                      className="mt-0.5 h-5 w-5 flex-shrink-0 text-green-500"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M5 13l4 4L19 7"
+                      />
+                    </svg>
+                    <span className="text-sm text-gray-600 dark:text-gray-400">
+                      {feature}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+
+              {/* CTA Button */}
+              <Button
+                onClick={() => handleSubscribe(plan)}
+                disabled={submittingPlanId === planoId}
+                className={`w-full ${
+                  popular
+                    ? ""
+                    : "!bg-gray-100 !text-gray-700 hover:!bg-brand-500 hover:!text-white dark:!bg-gray-800 dark:!text-gray-300 dark:hover:!bg-brand-500 dark:hover:!text-white"
+                }`}
+              >
+                {submittingPlanId === planoId ? "Processando..." : `Assinar Plano ${plan.name}`}
+              </Button>
+            </div>
+          );
+        })}
       </div>
 
       {/* Additional Info */}

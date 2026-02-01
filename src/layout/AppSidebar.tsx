@@ -11,8 +11,8 @@ import {
   GridIcon,
   HorizontaLDots,
   ListIcon,
-  TaskIcon,
   UserCircleIcon,
+  ChatIcon,
 } from "../icons/index";
 import SidebarWidget from "./SidebarWidget";
 
@@ -40,20 +40,20 @@ const navItems: NavItem[] = [
       { name: "Grades Horárias", path: "/planejamento/grade-horaria", pro: false },
     ],
   },
-  // {
-  //   name: "Substituições",
-  //   icon: <TaskIcon />,
-  //   subItems: [
-  //     { name: "Painel de Substituições", path: "/substituicoes/painel", pro: false },
-  //     { name: "Minhas Solicitações", path: "/substituicoes/minhas", pro: false },
-  //   ],
-  // },
   {
     name: "Usuários & Acesso",
     icon: <UserCircleIcon />,
     subItems: [
-      { name: "Gestão de Usuários", path: "/usuarios/gestao", pro: false },
+      { name: "Gestão de Usuários", path: "/planejamento/usuarios", pro: false },
       { name: "Perfil", path: "/profile", pro: false },
+    ],
+  },
+  {
+    name: "Suporte",
+    icon: <ChatIcon />,
+    subItems: [
+      { name: "Tickets", path: "/suporte/tickets", pro: false },
+      { name: "Chat", path: "/suporte/chat", pro: false },
     ],
   },
   {

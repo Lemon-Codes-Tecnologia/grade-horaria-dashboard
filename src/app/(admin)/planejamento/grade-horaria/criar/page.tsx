@@ -26,8 +26,10 @@ import { useModal } from "@/hooks/useModal";
 
 // Validation schema
 const gradeSchema = z.object({
-  turma: z.string().min(1, "Selecione uma turma"),
-  nome: z.string().min(1, "Nome da grade é obrigatório"),
+  modo: z.enum(["turma", "turno"]),
+  turma: z.string().optional(),
+  turno: z.enum(["manha", "tarde", "noite"]).optional(),
+  nome: z.string().optional(),
   descricao: z.string().optional(),
 });
 
@@ -72,19 +74,38 @@ export default function CriarGradeHorariaPage() {
     formState: { errors },
     watch,
     setValue,
+    setError,
+    clearErrors,
   } = useForm<GradeFormData>({
     resolver: zodResolver(gradeSchema),
     defaultValues: {
+      modo: "turma",
       turma: "",
+      turno: "",
       nome: "",
       descricao: "",
     },
   });
 
   const turmaSelecionada = watch("turma");
+  const modoSelecionado = watch("modo");
+  const turnoSelecionado = watch("turno");
+
+  useEffect(() => {
+    if (modoSelecionado === "turno") {
+      setValue("turma", "");
+      setValue("nome", "");
+      setValue("descricao", "");
+      clearErrors(["turma", "nome", "descricao"]);
+    } else {
+      setValue("turno", "");
+      clearErrors(["turno"]);
+    }
+  }, [modoSelecionado, setValue, clearErrors]);
 
   // Busca automática de nome baseado na turma
   useEffect(() => {
+    if (modoSelecionado !== "turma") return;
     if (turmaSelecionada) {
       const turma = turmas.find(t => t._id === turmaSelecionada);
       if (turma) {
@@ -92,12 +113,12 @@ export default function CriarGradeHorariaPage() {
         setValue("nome", `Grade ${turma.nome} - ${anoAtual}`);
       }
     }
-  }, [turmaSelecionada, turmas, setValue]);
+  }, [turmaSelecionada, turmas, setValue, modoSelecionado]);
 
   // Carregar professores e disciplinas quando turma for selecionada
   useEffect(() => {
     const fetchProfessoresEDisciplinas = async () => {
-      if (!selectedSchool || !turmaSelecionada) return;
+      if (!selectedSchool || !turmaSelecionada || modoSelecionado !== "turma") return;
 
       try {
         // Carregar professores
@@ -127,7 +148,7 @@ export default function CriarGradeHorariaPage() {
     };
 
     fetchProfessoresEDisciplinas();
-  }, [selectedSchool, turmaSelecionada]);
+  }, [selectedSchool, turmaSelecionada, modoSelecionado]);
 
   // Carregar turmas
   useEffect(() => {
@@ -178,10 +199,15 @@ export default function CriarGradeHorariaPage() {
         const disciplinasData = disciplinasResponse.data || disciplinasResponse.payload;
 
         // Verificar se escola tem horários configurados
-        const horariosConfigurados = !!(
-          selectedSchool.configuracoes?.horariosDisponiveis &&
-          Object.keys(selectedSchool.configuracoes.horariosDisponiveis).length > 0
-        );
+        const horariosConfigurados = (() => {
+          const horarios = selectedSchool.configuracoes?.horariosDisponiveis as Record<string, any> | undefined;
+          if (!horarios) return false;
+          const keys = Object.keys(horarios);
+          if (keys.length === 0) return false;
+          const legacyTurnos = keys.filter((key) => ["manha", "tarde", "noite"].includes(key));
+          if (legacyTurnos.length > 0) return true;
+          return Object.values(horarios).some((turnos) => Object.keys(turnos || {}).length > 0);
+        })();
 
         setStats({
           professores: professoresData?.totalDocs || 0,
@@ -235,6 +261,22 @@ export default function CriarGradeHorariaPage() {
       return;
     }
 
+    if (data.modo === "turma") {
+      if (!data.turma) {
+        setError("turma", { message: "Selecione uma turma" });
+        return;
+      }
+      if (!data.nome?.trim()) {
+        setError("nome", { message: "Nome da grade é obrigatório" });
+        return;
+      }
+    } else {
+      if (!data.turno) {
+        setError("turno", { message: "Selecione um turno" });
+        return;
+      }
+    }
+
     // Validações básicas
     if (stats.professores === 0) {
       toast.error("Não há professores cadastrados", {
@@ -260,13 +302,19 @@ export default function CriarGradeHorariaPage() {
     setIsSubmitting(true);
     try {
       const payload: any = {
-        turma: data.turma,
-        nome: data.nome,
-        descricao: data.descricao || undefined,
+        modo: data.modo,
       };
 
+      if (data.modo === "turma") {
+        payload.turma = data.turma;
+        payload.nome = data.nome;
+        payload.descricao = data.descricao || undefined;
+      } else {
+        payload.turno = data.turno;
+      }
+
       // Adicionar horários criados manualmente
-      if (horariosManuais.length > 0) {
+      if (data.modo === "turma" && horariosManuais.length > 0) {
         payload.horarios = horariosManuais.map(h => ({
           diaSemana: h.diaSemana,
           horaInicio: h.horaInicio,
@@ -279,7 +327,7 @@ export default function CriarGradeHorariaPage() {
       }
 
       // Adicionar configurações avançadas se habilitadas
-      if (showAdvanced) {
+      if (data.modo === "turma" && showAdvanced) {
         payload.configuracoes = {
           algoritmo: {
             priorizarSemJanelas,
@@ -341,7 +389,9 @@ export default function CriarGradeHorariaPage() {
     );
   }
 
-  const turmaInfo = turmas.find(t => t._id === turmaSelecionada);
+  const turmaInfo = modoSelecionado === "turma"
+    ? turmas.find(t => t._id === turmaSelecionada)
+    : undefined;
 
   return (
     <div className="space-y-6">
@@ -357,7 +407,7 @@ export default function CriarGradeHorariaPage() {
             Gerar Grade Horária
           </h1>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            Gere automaticamente a grade horária para uma turma
+            Gere automaticamente a grade horária por turma ou por turno
           </p>
         </div>
       </div>
@@ -370,61 +420,111 @@ export default function CriarGradeHorariaPage() {
           </h2>
           <div className="grid grid-cols-1 gap-6">
             <div>
-              <Label>
-                Turma <span className="text-error-500">*</span>
-              </Label>
-              <select
-                {...register("turma")}
-                disabled={loadingTurmas}
-                className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-700 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300 disabled:opacity-50"
-              >
-                <option value="">
-                  {loadingTurmas ? "Carregando turmas..." : "Selecione uma turma"}
-                </option>
-                {turmas.map((turma) => (
-                  <option key={turma._id} value={turma._id}>
-                    {turma.nome} - {turma.codigo} ({turma.serie})
-                  </option>
-                ))}
-              </select>
-              {errors.turma && (
-                <p className="mt-1 text-xs text-error-500">{errors.turma.message}</p>
-              )}
-              {turmaInfo && (
-                <div className="mt-2 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
-                  <p className="text-xs text-gray-600 dark:text-gray-400">
-                    <strong>Série:</strong> {turmaInfo.serie} •
-                    <strong> Turno:</strong> {turmaInfo.turno.charAt(0).toUpperCase() + turmaInfo.turno.slice(1)} •
-                    <strong> Alunos:</strong> {turmaInfo.quantidadeAlunos || 0}/{turmaInfo.capacidadeMaxima}
-                  </p>
+              <Label>Modo de geração</Label>
+              <div className="mt-2 flex flex-wrap gap-4">
+                <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                  <input
+                    type="radio"
+                    value="turma"
+                    {...register("modo")}
+                    checked={modoSelecionado === "turma"}
+                    className="h-4 w-4 text-brand-500 focus:ring-brand-500"
+                  />
+                  Gerar por turma
+                </label>
+                <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
+                  <input
+                    type="radio"
+                    value="turno"
+                    {...register("modo")}
+                    checked={modoSelecionado === "turno"}
+                    className="h-4 w-4 text-brand-500 focus:ring-brand-500"
+                  />
+                  Gerar todas do turno
+                </label>
+              </div>
+            </div>
+
+            {modoSelecionado === "turno" && (
+              <div>
+                <Label>
+                  Turno <span className="text-error-500">*</span>
+                </Label>
+                <select
+                  {...register("turno")}
+                  className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-700 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300"
+                >
+                  <option value="">Selecione o turno</option>
+                  <option value="manha">Manhã</option>
+                  <option value="tarde">Tarde</option>
+                  <option value="noite">Noite</option>
+                </select>
+                {errors.turno && (
+                  <p className="mt-1 text-xs text-error-500">{errors.turno.message}</p>
+                )}
+              </div>
+            )}
+
+            {modoSelecionado === "turma" && (
+              <>
+                <div>
+                  <Label>
+                    Turma <span className="text-error-500">*</span>
+                  </Label>
+                  <select
+                    {...register("turma")}
+                    disabled={loadingTurmas}
+                    className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-700 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300 disabled:opacity-50"
+                  >
+                    <option value="">
+                      {loadingTurmas ? "Carregando turmas..." : "Selecione uma turma"}
+                    </option>
+                    {turmas.map((turma) => (
+                      <option key={turma._id} value={turma._id}>
+                        {turma.nome} - {turma.codigo} ({turma.serie})
+                      </option>
+                    ))}
+                  </select>
+                  {errors.turma && (
+                    <p className="mt-1 text-xs text-error-500">{errors.turma.message}</p>
+                  )}
+                  {turmaInfo && (
+                    <div className="mt-2 p-3 bg-gray-50 dark:bg-gray-800/50 rounded-lg">
+                      <p className="text-xs text-gray-600 dark:text-gray-400">
+                        <strong>Série:</strong> {turmaInfo.serie} •
+                        <strong> Turno:</strong> {turmaInfo.turno.charAt(0).toUpperCase() + turmaInfo.turno.slice(1)} •
+                        <strong> Alunos:</strong> {turmaInfo.quantidadeAlunos || 0}/{turmaInfo.capacidadeMaxima}
+                      </p>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
 
-            <div>
-              <Label>
-                Nome da Grade <span className="text-error-500">*</span>
-              </Label>
-              <input
-                type="text"
-                {...register("nome")}
-                placeholder="Ex: Grade Turma A - 2026"
-                className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-700 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300"
-              />
-              {errors.nome && (
-                <p className="mt-1 text-xs text-error-500">{errors.nome.message}</p>
-              )}
-            </div>
+                <div>
+                  <Label>
+                    Nome da Grade <span className="text-error-500">*</span>
+                  </Label>
+                  <input
+                    type="text"
+                    {...register("nome")}
+                    placeholder="Ex: Grade Turma A - 2026"
+                    className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-700 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300"
+                  />
+                  {errors.nome && (
+                    <p className="mt-1 text-xs text-error-500">{errors.nome.message}</p>
+                  )}
+                </div>
 
-            <div>
-              <Label>Descrição (opcional)</Label>
-              <textarea
-                {...register("descricao")}
-                placeholder="Descrição da grade horária"
-                rows={3}
-                className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-700 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300"
-              />
-            </div>
+                <div>
+                  <Label>Descrição (opcional)</Label>
+                  <textarea
+                    {...register("descricao")}
+                    placeholder="Descrição da grade horária"
+                    rows={3}
+                    className="w-full rounded-lg border border-gray-200 bg-white px-4 py-2.5 text-sm text-gray-700 focus:border-brand-500 focus:outline-none focus:ring-1 focus:ring-brand-500 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300"
+                  />
+                </div>
+              </>
+            )}
           </div>
         </div>
 
@@ -568,7 +668,7 @@ export default function CriarGradeHorariaPage() {
         </div>
 
         {/* Grade Horária - Preenchimento Manual (Opcional) */}
-        {turmaSelecionada && (
+        {modoSelecionado === "turma" && turmaSelecionada && (
           <div className="rounded-xl border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
             <div className="flex items-center justify-between mb-4">
               <div>
@@ -627,8 +727,18 @@ export default function CriarGradeHorariaPage() {
           >
             Cancelar
           </Button>
-          <Button type="submit" disabled={isSubmitting || !turmaSelecionada}>
-            {isSubmitting ? "Gerando Grade..." : "Gerar Grade Horária"}
+          <Button
+            type="submit"
+            disabled={
+              isSubmitting ||
+              (modoSelecionado === "turma" ? !turmaSelecionada : !turnoSelecionado)
+            }
+          >
+            {isSubmitting
+              ? "Gerando..."
+              : modoSelecionado === "turno"
+                ? "Gerar grades"
+                : "Gerar grade"}
           </Button>
         </div>
       </form>

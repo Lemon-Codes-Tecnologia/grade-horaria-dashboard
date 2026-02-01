@@ -245,8 +245,10 @@ export const exportGradeHorariaPdf = async (
  * Cria nova grade horária e tenta gerar automaticamente
  */
 export interface CreateGradeHorariaData {
-  nome: string;
-  turma: string; // ID da turma
+  nome?: string;
+  turma?: string; // ID da turma
+  modo?: "turma" | "turno";
+  turno?: Periodo;
   descricao?: string;
   anoLetivo?: number;
   semestre?: Semestre;

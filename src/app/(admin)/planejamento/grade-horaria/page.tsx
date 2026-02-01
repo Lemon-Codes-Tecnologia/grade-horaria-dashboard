@@ -245,7 +245,7 @@ export default function GradesHorariasPage() {
         <Link href="/planejamento/grade-horaria/criar">
           <Button>
             <PlusIcon className="mr-2 h-4 w-4" />
-            Nova Grade
+            Gerar grades
           </Button>
         </Link>
       </div>

@@ -26,28 +26,23 @@ export function useDeleteUser() {
     try {
       const response = await deleteUser(userId);
 
-      if (response.success) {
-        // Check for success message from API
-        if (
-          response.message?.includes(
-            "Atenção! Todas as informações da conta foram deletadas"
-          )
-        ) {
-          toast.success("Conta excluída", {
-            description: "Todas as informações da conta foram deletadas com sucesso.",
-          });
-        } else {
-          toast.success("Conta excluída", {
-            description: response.message || "Usuário removido com sucesso.",
-          });
-        }
-
-        setIsDeleting(false);
-        return true;
+      // Check for success message from API (backend não retorna success)
+      if (
+        response.message?.includes(
+          "Atenção! Todas as informações da conta foram deletadas"
+        )
+      ) {
+        toast.success("Conta excluída", {
+          description: "Todas as informações da conta foram deletadas com sucesso.",
+        });
+      } else {
+        toast.success("Conta excluída", {
+          description: response.message || "Usuário removido com sucesso.",
+        });
       }
 
       setIsDeleting(false);
-      return false;
+      return true;
     } catch (error: any) {
       const errorMessage = error.response?.data?.message;
       const statusCode = error.response?.status;
